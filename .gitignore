@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.x_tokens.json
+data/
+*.csv
+scrub.config.json
+.DS_Store

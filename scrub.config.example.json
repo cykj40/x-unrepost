@@ -1,0 +1,5 @@
+{
+  "mode": "keep_only",
+  "topics": ["software engineering", "AI and LLMs", "coding agents", "developer tools"],
+  "instructions": "Personal milestones and fitness posts are borderline. Memes about coding count as on-topic."
+}

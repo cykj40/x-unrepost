@@ -1,0 +1,28 @@
+{
+  "name": "x-unrepost",
+  "version": "0.1.0",
+  "description": "Scan your X account, label posts against your own criteria with an LLM, and delete the matches.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "scan": "tsx src/cli.ts scan",
+    "classify": "tsx src/cli.ts classify",
+    "review": "tsx src/cli.ts review",
+    "delete": "tsx src/cli.ts delete",
+    "status": "tsx src/cli.ts status",
+    "auth": "tsx src/cli.ts auth"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
