@@ -90,13 +90,12 @@ export function loadRows(file: string = paths.postsCsv): PostRow[] {
   });
 }
 
-/** Atomic: writes a tmp file next to the target, then renames it into place. */
-export function saveRows(rows: PostRow[], file: string = paths.postsCsv): void {
+/** Atomic: writes a tmp file next to the target (creating its directory), then renames it into place. */
+export function writeFileAtomic(file: string, content: string): void {
   mkdirSync(path.dirname(file), { recursive: true });
-  const csv = serializeCsv([[...COLUMNS], ...rows.map((r) => COLUMNS.map((c) => r[c]))]);
   const tmp = `${file}.${process.pid}.tmp`;
   try {
-    writeFileSync(tmp, BOM + csv, "utf8");
+    writeFileSync(tmp, content, "utf8");
     renameSync(tmp, file);
   } catch (err) {
     try {
@@ -106,6 +105,11 @@ export function saveRows(rows: PostRow[], file: string = paths.postsCsv): void {
     }
     throw err;
   }
+}
+
+export function saveRows(rows: PostRow[], file: string = paths.postsCsv): void {
+  const csv = serializeCsv([[...COLUMNS], ...rows.map((r) => COLUMNS.map((c) => r[c]))]);
+  writeFileAtomic(file, BOM + csv);
 }
 
 // Fields set by classify/review/delete; an upsert from a scan must never overwrite them.
