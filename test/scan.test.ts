@@ -170,3 +170,78 @@ test("rescanning preserves existing labels", async () => {
   await scan(s.opts);
   assert.equal(loadRows(s.opts.postsCsv)[0]?.label, "remove");
 });
+
+// ---- incremental scans (saved state is complete) ----
+
+async function seeded(ids: string[]) {
+  const s = setup([page(ids)]);
+  await scan(s.opts); // full first scan: leaves a complete state and a populated CSV
+  s.calls.length = 0;
+  return s;
+}
+
+test("incremental: stops at the first page where every id is already known", async () => {
+  const s = await seeded(["1", "2", "3"]);
+  s.queue.push(page(["3", "2"], "n1"), page(["1"])); // second page must never be requested
+  const res = await scan(s.opts);
+  assert.deepEqual(s.calls, [undefined]);
+  assert.equal(res.complete, true);
+  assert.equal(res.newPosts, 0);
+  assert.deepEqual(s.state(), { user_id: "42", complete: true, incremental: true });
+});
+
+test("incremental: prints 'no new posts' when the first page is all known", async () => {
+  const s = await seeded(["1", "2"]);
+  s.queue.push(page(["2", "1"], "n1"));
+  const lines: string[] = [];
+  await scan({ ...s.opts, log: (l) => lines.push(l) });
+  assert.ok(lines.includes("no new posts"));
+});
+
+test("incremental: new posts are saved, mixed pages continue, then it stops at a known page", async () => {
+  const s = await seeded(["1", "2", "3"]);
+  s.queue.push(page(["5", "4"], "n1"), page(["6", "1"], "n2"), page(["3", "2"], "n3"), page(["x"]));
+  const lines: string[] = [];
+  const res = await scan({ ...s.opts, log: (l) => lines.push(l) });
+  assert.deepEqual(s.calls, [undefined, "n1", "n2"]); // page 2 was mixed, so it kept going
+  assert.equal(res.newPosts, 3);
+  assert.equal(res.complete, true);
+  assert.ok(!lines.includes("no new posts"));
+  assert.deepEqual(
+    loadRows(s.opts.postsCsv).map((r) => r.id).sort(),
+    ["1", "2", "3", "4", "5", "6"],
+  );
+  assert.equal(s.state().complete, true);
+  assert.equal(s.state().next_token, undefined);
+});
+
+test("incremental: an interrupted incremental scan resumes incrementally", async () => {
+  const s = await seeded(["1", "2"]);
+  s.queue.push(page(["9"], "n1"));
+  const first = await scan({ ...s.opts, maxPages: 1 });
+  assert.equal(first.complete, false);
+  assert.deepEqual(s.state(), { user_id: "42", next_token: "n1", complete: false, incremental: true });
+
+  s.calls.length = 0;
+  s.queue.push(page(["2", "1"], "n2"), page(["z"]));
+  const second = await scan(s.opts);
+  assert.deepEqual(s.calls, ["n1"]); // resumed from the cursor, then stopped at known ids
+  assert.equal(second.complete, true);
+});
+
+test("--fresh is unaffected: it pages through known posts to the end", async () => {
+  const s = await seeded(["1", "2", "3"]);
+  s.queue.push(page(["3"], "a"), page(["2"], "b"), page(["1"]));
+  const res = await scan({ ...s.opts, fresh: true });
+  assert.deepEqual(s.calls, [undefined, "a", "b"]);
+  assert.equal(res.pages, 3);
+  assert.deepEqual(s.state(), { user_id: "42", complete: true });
+});
+
+test("an incomplete (non-incremental) scan still resumes from its cursor and does not stop early", async () => {
+  const s = await seeded(["1", "2"]);
+  writeFileSync(s.opts.scanStateFile, JSON.stringify({ user_id: "42", next_token: "saved", complete: false }));
+  s.queue.push(page(["1"], "x"), page(["2"]));
+  await scan(s.opts);
+  assert.deepEqual(s.calls, ["saved", "x"]);
+});

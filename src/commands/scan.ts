@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import { z } from "zod";
 import { getConfig, paths } from "../config.ts";
 import { ConfigError } from "../errors.ts";
-import { upsertRows, writeFileAtomic } from "../store.ts";
+import { loadRows, upsertRows, writeFileAtomic } from "../store.ts";
 import { POST_TYPES, PostRow } from "../types.ts";
 import { XClient, type UserTweetsPage, type XTweet } from "../xclient.ts";
 
@@ -12,6 +12,8 @@ const scanState = z.object({
   /** Cursor for the next page; absent once pagination has ended. */
   next_token: z.string().optional(),
   complete: z.boolean(),
+  /** An incremental scan stops at the first page whose ids are all already known; survives a resume. */
+  incremental: z.boolean().optional(),
 });
 type ScanState = z.infer<typeof scanState>;
 
@@ -87,6 +89,8 @@ export interface ScanOptions {
 export interface ScanResult {
   complete: boolean;
   pages: number;
+  /** Ids written this run that were not in the CSV before. */
+  newPosts: number;
   totals: Record<(typeof POST_TYPES)[number], number>;
 }
 
@@ -94,25 +98,46 @@ export async function scan(opts: ScanOptions): Promise<ScanResult> {
   const log = opts.log ?? console.log;
   const user = await opts.client.me();
 
-  // Resume only an unfinished scan for the same account. A finished scan starts over
-  // from the newest post; upserts merge, so existing labels and status are kept.
+  // --fresh re-reads everything. Otherwise: an unfinished scan for this account resumes from its
+  // cursor; a finished one goes incremental (newest first, stop at the first page of known ids).
   const saved = opts.fresh ? undefined : readState(opts.scanStateFile);
-  let token = saved && saved.user_id === user.id && !saved.complete ? saved.next_token : undefined;
-  log(`Scanning @${user.username} (${user.id})${token ? ": resuming from saved cursor" : ""}`);
+  const mine = saved && saved.user_id === user.id ? saved : undefined;
+  const resuming = mine !== undefined && !mine.complete;
+  const incremental = mine !== undefined && (mine.complete || mine.incremental === true);
+  let token = resuming ? mine.next_token : undefined;
+
+  const known = incremental ? new Set(loadRows(opts.postsCsv).map((r) => r.id)) : new Set<string>();
+  log(
+    `Scanning @${user.username} (${user.id})` +
+      (resuming ? ": resuming from saved cursor" : incremental ? ": looking for new posts" : ""),
+  );
 
   let pages = 0;
+  let newPosts = 0;
   let complete = false;
   let rows: PostRow[] = [];
   for (;;) {
     const page = await opts.client.userTweets(user.id, token);
     const pageRows = page.data.map((t) => tweetToRow(t, page.includes));
+    const allKnown = incremental && pageRows.every((r) => known.has(r.id));
+    newPosts += pageRows.filter((r) => !known.has(r.id)).length;
     rows = upsertRows(pageRows, opts.postsCsv);
-    token = page.meta.next_token;
-    complete = token === undefined;
-    writeState(opts.scanStateFile, { user_id: user.id, next_token: token, complete });
     pages++;
 
+    token = page.meta.next_token;
+    complete = token === undefined || allKnown;
+    writeState(opts.scanStateFile, {
+      user_id: user.id,
+      next_token: complete ? undefined : token,
+      complete,
+      ...(incremental ? { incremental: true } : {}),
+    });
+
     log(`page ${pages}: ${pageRows.length} tweets (${rows.length} rows total)`);
+    if (allKnown) {
+      log(pages === 1 ? "no new posts" : "Reached posts already in the CSV; stopping.");
+      break;
+    }
     if (complete) break;
     if (opts.maxPages !== undefined && pages >= opts.maxPages) break;
   }
@@ -120,7 +145,7 @@ export async function scan(opts: ScanOptions): Promise<ScanResult> {
   const totals = Object.fromEntries(POST_TYPES.map((t) => [t, rows.filter((r) => r.type === t).length])) as ScanResult["totals"];
   log(complete ? "Scan complete." : `Stopped after ${pages} page(s); run scan again to resume.`);
   log(POST_TYPES.map((t) => `${t}: ${totals[t]}`).join(", ") + ` (${rows.length} total)`);
-  return { complete, pages, totals };
+  return { complete, pages, newPosts, totals };
 }
 
 export async function run(argv: string[]): Promise<void> {
