@@ -7,6 +7,14 @@ export const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.u
 
 const dataDir = path.join(projectRoot, "data");
 
+/** Fixed paths; need no env, so commands that only touch local files can use them directly. */
+export const paths = {
+  dataDir,
+  postsCsv: path.join(dataDir, "posts.csv"),
+  scanState: path.join(dataDir, "scan_state.json"),
+  tokensFile: path.join(projectRoot, ".x_tokens.json"),
+} as const;
+
 const BASE_URLS = {
   openai: "https://api.openai.com/v1",
   xai: "https://api.x.ai/v1",
@@ -79,10 +87,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
   return {
     x: { clientId: parsed.X_CLIENT_ID!, clientSecret: parsed.X_CLIENT_SECRET! },
     ai: { provider, apiKey, baseUrl: BASE_URLS[provider], model },
-    dataDir,
-    postsCsv: path.join(dataDir, "posts.csv"),
-    scanState: path.join(dataDir, "scan_state.json"),
-    tokensFile: path.join(projectRoot, ".x_tokens.json"),
+    ...paths,
   };
 }
 
