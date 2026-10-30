@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { ConfigError } from "./errors.ts";
 
 type CommandModule = { run: (argv: string[]) => Promise<void> };
 
@@ -66,6 +67,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : String(err));
+  if (err instanceof ConfigError) {
+    for (const problem of err.problems) console.error(`error: ${problem}`);
+  } else {
+    console.error(err instanceof Error ? err.message : String(err));
+  }
   process.exit(1);
 });
