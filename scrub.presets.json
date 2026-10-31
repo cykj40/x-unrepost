@@ -1,0 +1,4 @@
+{
+  "remove": ["politics", "sports", "crypto", "celebrity gossip"],
+  "keep_only": ["software engineering", "AI and LLMs", "coding agents", "developer tools"]
+}

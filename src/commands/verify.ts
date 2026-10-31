@@ -1,5 +1,5 @@
 import { parseFlags, parsePositiveInt } from "../args.ts";
-import { getConfig, paths } from "../config.ts";
+import { getXConfig, paths } from "../config.ts";
 import { loadRows } from "../store.ts";
 import type { PostRow } from "../types.ts";
 import { XClient } from "../xclient.ts";
@@ -78,7 +78,7 @@ export interface VerifyDeps {
 
 export async function run(argv: string[], deps: VerifyDeps = {}): Promise<void> {
   const { pages } = parseVerifyArgs(argv);
-  const client = deps.client ?? (getConfig(), new XClient());
+  const client = deps.client ?? (getXConfig(), new XClient());
   const result = await verify({ client, postsCsv: deps.postsCsv ?? paths.postsCsv, pages, log: deps.log });
   if (result.stillPresent.length > 0) process.exitCode = 1;
 }

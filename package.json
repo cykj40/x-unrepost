@@ -9,6 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "scan": "tsx src/cli.ts scan",
     "classify": "tsx src/cli.ts classify",
@@ -16,7 +18,8 @@
     "delete": "tsx src/cli.ts delete",
     "status": "tsx src/cli.ts status",
     "verify": "tsx src/cli.ts verify",
-    "auth": "tsx src/cli.ts auth"
+    "auth": "tsx src/cli.ts auth",
+    "init": "tsx src/cli.ts init"
   },
   "dependencies": {
     "zod": "^4.6.7"
@@ -25,5 +28,20 @@
     "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "bin": {
+    "x-unrepost": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    ".env.example",
+    "scrub.config.example.json",
+    "scrub.presets.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }

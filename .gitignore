@@ -6,3 +6,4 @@ data/
 *.csv
 scrub.config.json
 .DS_Store
+*.tgz

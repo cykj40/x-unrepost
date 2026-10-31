@@ -18,7 +18,7 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 - [x] **Phase 7** — `classify` command, with the prompt built from the criteria
 - [x] **Phase 8** — `review` command *(skipped on purpose: borderline rows were deleted too)*
 - [x] **Phase 9** — `delete` command *(built, tested, and run for real: 1,382 reposts un-reposted)*
-- [ ] **Phase 10** — `status`, `verify`, README, final hardening
+- [x] **Phase 10** — `status`, `verify`, README, final hardening *(pushed; CI green; fresh clone passes 128/128 on Node 22; verify run on the real account: clean)*
 - [x] **Phase 11** — The real run *(you)*: 1,382 reposts + 66 replies/posts deleted; x.com checked
 - [ ] **Phase 12** — Installable CLI and `init` setup wizard (guided or manual)
 - [ ] **Phase 13** — `import-archive`, to reach posts older than the API's ~3,200
@@ -27,7 +27,7 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 
 ## Resume here (end of session 2, Sat Oct 31)
 
-**State:** Phases 0 to 9 and 11 are done. The account is scrubbed of politics under the criteria: `delete --include-borderline` un-reposted **1,382 reposts** (1,055 remove + 327 borderline; 0 failed, 0 gone), and a second run with `--types reply,post --include-borderline` deleted **66 replies and posts permanently** (58 replies, 8 posts; decision: "I'd rather be safe than sorry", nothing held back). The user scrolled their profile on x.com and found no political content; finance and tech reposts were kept. Final `classify` shows remove 0, borderline 0, keep 1,774 (1,840 before the last delete minus 66).
+**State:** Phases 0 to 11 are done. The account is scrubbed of politics under the criteria: `delete --include-borderline` un-reposted **1,382 reposts** (1,055 remove + 327 borderline; 0 failed, 0 gone), and a second run with `--types reply,post --include-borderline` deleted **66 replies and posts permanently** (58 replies, 8 posts; decision: "I'd rather be safe than sorry", nothing held back). The user scrolled their profile on x.com and found no political content; finance and tech reposts were kept. Final `classify` shows remove 0, borderline 0, keep 1,774 (1,840 before the last delete minus 66).
 
 **Final labels (hash `2a5d30c8`, run 2):** remove 1,096, borderline 352, keep 1,770 over 3,218 rows. The dry-run list was all reposts, all about politics; a few arguable rows (USDA/Rollins nutrition, Sec. Kennedy food, Lonsdale taxes, an Iranian-rescue post) were accepted under "if there's any doubt, delete".
 
@@ -69,7 +69,7 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 
 | Area | Decision |
 |---|---|
-| Runtime | Node **≥ 22**, ESM (`"type": "module"`), TypeScript `strict` |
+| Runtime | Node **≥ 20.12**, ESM (`"type": "module"`), TypeScript `strict` |
 | Run | `tsx` runs the source directly with no build step. `tsc --noEmit` is the typecheck |
 | Runtime deps | **`zod` only.** Use native `fetch`, `node:http`, `node:crypto`, `node:readline/promises`, `node:util` `parseArgs`, `node:test` |
 | Env loading | `process.loadEnvFile()` (built into Node), no `dotenv` |
@@ -154,7 +154,7 @@ Other examples to include in the README: `{"mode":"remove","topics":["politics"]
 CLI that scans the user's X account, labels each item with an LLM against user-defined
 criteria (scrub.config.json: remove these topics, or keep only these topics), and deletes the matches.
 - Read PLAN.md first. Only do the phase you're asked to do.
-- Node >=22 ESM, TS strict. Runtime dep: zod only. No new deps without asking.
+- Node >=20.12 ESM, TS strict. Runtime dep: zod only. No new deps without asking.
 - Labels are generic: remove | borderline | keep. Never hard-code a topic in the code.
 - Never read, print, or commit .env, .x_tokens.json, or data/.
 - Every write to state is atomic and happens after each item. Commands must be resumable.
@@ -344,7 +344,7 @@ Actual result: 1,382 reposts un-reposted in about 7 hours at 50 per 15 min, abou
 **Goal:** people run `npx x-unrepost` or `npm i -g x-unrepost` instead of cloning the repo, and a setup wizard replaces hand-editing files.
 
 **Prompt:**
-> Read PLAN.md and CLAUDE.md. Do Phase 12 only. (1) Packaging: add a `bin` entry and a build (`tsc` to `dist/`, with a shebang on the entry) so `x-unrepost <command>` works; keep `tsx` for development. Move state (`data/`, `.x_tokens.json`) to a per-user directory (`~/.x-unrepost/`, overridable with `X_UNREPOST_HOME`), and keep reading `.env` and `scrub.config.json` from the current directory or that home. Existing repo-local state must keep working (migrate or detect it, never lose data). (2) `x-unrepost init`: first ask **Guided setup** or **Manual setup**. *Manual*: copy `.env.example` and `scrub.config.example.json` into place (never overwrite), print what to fill in, and stop. *Guided*: ask for the X Client ID and Secret (secret input hidden) and the OpenAI key, with a one-line note on where each comes from; check each key with a real call (X `me`, a tiny OpenAI request) so typos fail now; write `.env` with mode 0600; make sure `.gitignore` covers it. Then build `scrub.config.json`: ask remove vs keep_only, the topics (offer presets like politics, sports, crypto, or type your own), and optional extra instructions (enforce the 500-character limit as the user types), show the final config, and ask for confirmation. End by printing the next command and the expected cost of a scan (about $3 per 3,200 posts) and the 50-per-15-minute un-repost limit. Use `node:readline/promises` only; no new dependencies without asking. Never print or log secrets.
+> Read PLAN.md and CLAUDE.md. Do Phase 12 only. (1) Packaging: add a `bin` entry and a build (`tsc` to `dist/`, with a shebang on the entry) so `x-unrepost <command>` works; keep `tsx` for development. Move state (`data/`, `.x_tokens.json`) to a per-user directory (`~/.x-unrepost/`, overridable with `X_UNREPOST_HOME`), and keep reading `.env` and `scrub.config.json` from the current directory or that home. Existing repo-local state must keep working (migrate or detect it, never lose data). (2) `x-unrepost init`: first ask **Guided setup** or **Manual setup**. *Manual*: copy `.env.example` and `scrub.config.example.json` into place (never overwrite), print what to fill in, and stop. *Guided*: ask for the X Client ID and Secret (secret input hidden) and the OpenAI key, with a one-line note on where each comes from; check each key with a real call (X `me`, a tiny OpenAI request) so typos fail now; write `.env` with mode 0600; make sure `.gitignore` covers it. Then build `scrub.config.json`: ask remove vs keep_only, the topics (offer presets like politics, sports, crypto, or type your own), and optional extra instructions (enforce the 500-character limit as the user types), show the final config, and ask for confirmation. End by printing the next command and the expected cost of a scan (about $3 per 3,200 posts) and the 50-per-15-minute un-repost limit. Use `node:readline/promises` only; no new dependencies without asking. Never print or log secrets. (3) Config: `auth` and `classify` currently validate the whole env and demand keys they don't use; each command should require only what it needs (for example `scan`/`auth`/`delete` need X keys and no AI key; `classify` needs the AI key and no X keys; `status` and `verify` as appropriate). (4) Make the skipped test ("no file and no flag points at the example") hermetic by running it in a temp working directory. (5) CI: test a matrix of Node 22, 24 and 26. (6) Note in the README that npm may warn about install scripts for esbuild and fsevents (`npm warn install-scripts`) and that it is harmless; if there's a clean way to approve them in package.json, do it, otherwise ask.
 
 **Done when:**
 - [ ] `npm run build` produces `dist/`; `node dist/cli.js --help` works
@@ -352,6 +352,9 @@ Actual result: 1,382 reposts un-reposted in about 7 hours at 50 per 15 min, abou
 - [ ] `init` guided mode on an empty folder produces a working `.env` (0600) and `scrub.config.json`; a bad key is rejected with a clear message
 - [ ] `init` manual mode never overwrites existing files
 - [ ] Existing repo-local `data/` and tokens still work
+- [ ] `scan` runs with only the X keys set; `classify` runs with only the AI key set
+- [ ] The previously skipped config test runs (no skip) and passes from any working directory
+- [ ] CI is green on Node 22, 24 and 26
 - [ ] Tests pass and typecheck is clean
 - [ ] Commit: `feat: installable CLI and init wizard`
 

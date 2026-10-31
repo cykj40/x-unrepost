@@ -45,3 +45,25 @@ test("empty env reports X_CLIENT_ID is required", () => {
 test("empty-string values count as unset", () => {
   assert.throws(() => parseConfig({ ...x, OPENAI_API_KEY: "", XAI_API_KEY: "" }), ConfigError);
 });
+
+test("each command's config needs only its own keys", async () => {
+  const { parseAiConfig, parseXConfig } = await import("../src/config.ts");
+  assert.deepEqual(parseXConfig({ X_CLIENT_ID: "a", X_CLIENT_SECRET: "b" }), { clientId: "a", clientSecret: "b" });
+  assert.equal(parseAiConfig({ OPENAI_API_KEY: "k", AI_MODEL: "m" }).model, "m");
+  assert.throws(() => parseXConfig({ OPENAI_API_KEY: "k", AI_MODEL: "m" }), (e) => e instanceof ConfigError && e.problems.length === 2);
+  assert.throws(() => parseAiConfig({ X_CLIENT_ID: "a", X_CLIENT_SECRET: "b" }), (e) => e instanceof ConfigError && e.problems.length === 1);
+});
+
+test("state lives in X_UNREPOST_HOME when set", async () => {
+  const { paths, stateDir } = await import("../src/config.ts");
+  const old = process.env.X_UNREPOST_HOME;
+  process.env.X_UNREPOST_HOME = "/tmp/xu-home-test";
+  try {
+    assert.equal(stateDir(), "/tmp/xu-home-test");
+    assert.equal(paths.postsCsv, "/tmp/xu-home-test/data/posts.csv");
+    assert.equal(paths.tokensFile, "/tmp/xu-home-test/.x_tokens.json");
+  } finally {
+    if (old === undefined) delete process.env.X_UNREPOST_HOME;
+    else process.env.X_UNREPOST_HOME = old;
+  }
+});

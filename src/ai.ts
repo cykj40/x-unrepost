@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AiProvider } from "./config.ts";
-import { getConfig } from "./config.ts";
+import { getAiConfig } from "./config.ts";
 
 const MAX_TRIES = 5;
 const BACKOFF_BASE_MS = 1000; // 1s, 2s, 4s, 8s
@@ -63,7 +63,7 @@ const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(reso
  * strict Structured Outputs so the same call also works on xAI. Output is validated with zod by the caller.
  * `reasoning_effort` is only sent to OpenAI: other providers may reject the parameter.
  */
-export function createChatClient(settings: AiSettings = getConfig().ai, deps: ChatClientDeps = {}): JsonChat {
+export function createChatClient(settings: AiSettings = getAiConfig(), deps: ChatClientDeps = {}): JsonChat {
   const doFetch = deps.fetch ?? fetch;
   const sleep = deps.sleep ?? realSleep;
   const redact = (text: string) =>

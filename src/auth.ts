@@ -4,7 +4,7 @@ import { chmodSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSy
 import http from "node:http";
 import path from "node:path";
 import { z } from "zod";
-import { getConfig } from "./config.ts";
+import { getXConfig, paths } from "./config.ts";
 
 const AUTHORIZE_URL = "https://x.com/i/oauth2/authorize";
 const TOKEN_URL = "https://api.x.com/2/oauth2/token";
@@ -94,8 +94,8 @@ export interface AuthDeps {
 
 function resolveSettings(deps: AuthDeps): AuthSettings {
   if (deps.settings) return deps.settings;
-  const cfg = getConfig();
-  return { clientId: cfg.x.clientId, clientSecret: cfg.x.clientSecret, tokensFile: cfg.tokensFile };
+  const x = getXConfig();
+  return { clientId: x.clientId, clientSecret: x.clientSecret, tokensFile: paths.tokensFile };
 }
 
 /** The token endpoint answered with an HTTP error. */

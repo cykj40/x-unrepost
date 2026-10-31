@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { getConfig, paths } from "../config.ts";
+import { getXConfig, paths } from "../config.ts";
 import { parseFlags, parsePositiveInt } from "../args.ts";
 import { loadRows, upsertRows, writeFileAtomic } from "../store.ts";
 import { POST_TYPES, PostRow } from "../types.ts";
@@ -157,7 +157,7 @@ export async function run(argv: string[], deps: ScanDeps = {}): Promise<void> {
   });
   const maxPages = parsePositiveInt("--max-pages", values["max-pages"]);
 
-  const client = deps.client ?? (getConfig(), new XClient()); // getConfig fails fast on missing credentials
+  const client = deps.client ?? (getXConfig(), new XClient()); // getXConfig fails fast on missing credentials
   await scan({
     client,
     postsCsv: deps.postsCsv ?? paths.postsCsv,

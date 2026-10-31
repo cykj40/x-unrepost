@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { projectRoot } from "./config.ts";
+import { findConfigFile } from "./config.ts";
 import { ConfigError } from "./errors.ts";
 
 export const criteriaSchema = z.object({
@@ -21,7 +21,7 @@ export interface LoadCriteriaOptions {
 }
 
 const NO_CRITERIA =
-  "No criteria found: create scrub.config.json (copy scrub.config.example.json) " +
+  "No criteria found: run `x-unrepost init`, or create scrub.config.json (copy scrub.config.example.json) " +
   'or pass --remove "a,b" / --keep-only "a,b"';
 
 function splitTopics(flag: string): string[] {
@@ -54,7 +54,7 @@ export function loadCriteria(opts: LoadCriteriaOptions = {}): Criteria {
     throw new ConfigError(["Pass only one of --remove and --keep-only, not both"]);
   }
 
-  const file = configPath ?? path.join(projectRoot, "scrub.config.json");
+  const file = configPath ?? findConfigFile("scrub.config.json") ?? path.join(process.cwd(), "scrub.config.json");
   const fromFile = readConfigFile(file, configPath !== undefined);
   const flagMode = removeFlag !== undefined ? "remove" : keepOnlyFlag !== undefined ? "keep_only" : undefined;
 

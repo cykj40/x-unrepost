@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { projectRoot } from "../src/config.ts";
 import { criteriaHash, loadCriteria } from "../src/criteria.ts";
 import { ConfigError } from "../src/errors.ts";
 
@@ -46,11 +45,42 @@ test("an explicit config path that does not exist is an error", () => {
   assert.throws(() => loadCriteria({ configPath, removeFlag: "a" }), ConfigError);
 });
 
-test("no file and no flag points at the example", { skip: existsSync(path.join(projectRoot, "scrub.config.json")) }, () => {
-  assert.throws(
-    () => loadCriteria(),
-    (e) => e instanceof ConfigError && e.problems.join(" ").includes("scrub.config.example.json"),
-  );
+test("no file and no flag points at the example", () => {
+  // Hermetic: an empty working directory and an empty state home, whatever exists on this machine.
+  const empty = mkdtempSync(path.join(tmpdir(), "criteria-empty-"));
+  const oldCwd = process.cwd();
+  const oldHome = process.env.X_UNREPOST_HOME;
+  process.chdir(empty);
+  process.env.X_UNREPOST_HOME = empty;
+  try {
+    assert.throws(
+      () => loadCriteria(),
+      (e) => e instanceof ConfigError && e.problems.join(" ").includes("scrub.config.example.json"),
+    );
+  } finally {
+    process.chdir(oldCwd);
+    if (oldHome === undefined) delete process.env.X_UNREPOST_HOME;
+    else process.env.X_UNREPOST_HOME = oldHome;
+  }
+});
+
+test("scrub.config.json is found in the working directory, then in the state home", () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "criteria-cwd-"));
+  const home = mkdtempSync(path.join(tmpdir(), "criteria-home-"));
+  writeFileSync(path.join(home, "scrub.config.json"), JSON.stringify({ mode: "remove", topics: ["from home"] }));
+  const oldCwd = process.cwd();
+  const oldHome = process.env.X_UNREPOST_HOME;
+  process.chdir(cwd);
+  process.env.X_UNREPOST_HOME = home;
+  try {
+    assert.deepEqual(loadCriteria().topics, ["from home"]);
+    writeFileSync(path.join(cwd, "scrub.config.json"), JSON.stringify({ mode: "remove", topics: ["from cwd"] }));
+    assert.deepEqual(loadCriteria().topics, ["from cwd"]);
+  } finally {
+    process.chdir(oldCwd);
+    if (oldHome === undefined) delete process.env.X_UNREPOST_HOME;
+    else process.env.X_UNREPOST_HOME = oldHome;
+  }
 });
 
 test("invalid file yields one line per problem", () => {

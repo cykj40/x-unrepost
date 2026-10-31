@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { parseFlags, parsePositiveInt } from "../args.ts";
-import { getConfig, paths } from "../config.ts";
+import { getXConfig, paths } from "../config.ts";
 import { criteriaHash, loadCriteria, type Criteria } from "../criteria.ts";
 import { ConfigError } from "../errors.ts";
 import { loadRows, saveRows } from "../store.ts";
@@ -230,7 +230,7 @@ export async function run(argv: string[], deps: DeleteDeps = {}): Promise<void> 
       ...args,
       criteria,
       // A dry run never needs credentials or a client.
-      client: deps.client ?? (args.dryRun ? undefined : (getConfig(), new XClient())),
+      client: deps.client ?? (args.dryRun ? undefined : (getXConfig(), new XClient())),
       postsCsv: deps.postsCsv ?? paths.postsCsv,
       confirm: deps.confirm ?? promptLine,
       shouldStop: deps.shouldStop ?? (() => stopRequested),

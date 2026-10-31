@@ -53,20 +53,43 @@ Labels are generic. `borderline` means the topic is part of the post but not its
 Requires Node 22 or newer.
 
 ```
-git clone https://github.com/cykj40/x-unrepost.git
-cd x-unrepost
-npm install
-cp .env.example .env
-cp scrub.config.example.json scrub.config.json
+npm install -g x-unrepost        # or run it without installing: npx x-unrepost <command>
+mkdir my-scrub && cd my-scrub
+x-unrepost init
 ```
 
-**X app.** In console.x.com create an app with user authentication set to **Read and write**, type **Web App / Automated App or Bot**, and callback URL exactly `http://127.0.0.1:8765/callback`. Copy the Client ID and Client Secret into `.env` as `X_CLIENT_ID` and `X_CLIENT_SECRET`. X API access is pay-per-use, so add credits there.
+`init` asks whether you want **Guided** or **Manual** setup.
+
+- **Guided** asks for your X Client ID and Secret (the secret is hidden) and your AI key, checks each one with a real request so a typo fails now, writes `.env` (mode 0600), then helps you build `scrub.config.json` (remove or keep only, topics from presets or your own, optional instructions up to 500 characters) and asks you to confirm it. It also adds `.env`, `.x_tokens.json`, `scrub.config.json` and `data/` to `.gitignore` when the folder is a git repo.
+- **Manual** copies `.env.example` and `scrub.config.example.json` into the current folder (never overwriting anything that exists) and tells you what to fill in.
+
+To work from a clone instead: `git clone https://github.com/cykj40/x-unrepost.git && cd x-unrepost && npm install`, then use `npm run <command>` in place of `x-unrepost <command>`.
+
+### Where things live
+
+- `.env` and `scrub.config.json` are read from the current folder first, then from the state folder.
+- State (`data/posts.csv`, `data/scan_state.json`, `.x_tokens.json`) lives in `~/.x-unrepost/`. Set `X_UNREPOST_HOME` to use another folder.
+- If you used an earlier version from a clone, the `data/` and `.x_tokens.json` inside that clone keep being used. Nothing is moved or deleted.
+
+### Which keys each command needs
+
+| Command | Needs |
+|---|---|
+| `scan`, `auth`, `delete` (not `--dry-run`), `verify` | X Client ID and Secret |
+| `classify` | an AI key (and `AI_MODEL` for OpenAI) |
+| `delete --dry-run`, `status`, `init` | no keys |
+
+### A note on `npm warn install-scripts`
+
+Depending on your npm version, installing this project's dev dependencies may print `npm warn install-scripts` for `esbuild` and `fsevents`. It is harmless: they are only used by development tooling and the warning only says their install scripts have not been reviewed. `package.json` lists both under `allowScripts`. Installing the published package pulls in only `zod`.
+
+**X app.** (`init` asks for these.) In console.x.com create an app with user authentication set to **Read and write**, type **Web App / Automated App or Bot**, and callback URL exactly `http://127.0.0.1:8765/callback`. Copy the Client ID and Client Secret into `.env` as `X_CLIENT_ID` and `X_CLIENT_SECRET`. X API access is pay-per-use, so add credits there.
 
 **AI key.** Create an OpenAI API key at platform.openai.com, add billing credit, and put it in `.env` as `OPENAI_API_KEY`. Set `AI_MODEL` to the model you want to use (required for OpenAI). xAI also works: set `XAI_API_KEY` (and `AI_PROVIDER=xai` if both keys are present).
 
 ## Walkthrough
 
-Pass flags after `--` when using npm.
+Use `x-unrepost <command>`; from a clone, `npm run <command>` with flags after `--`.
 
 ```
 npm run auth                                        # log in to X in your browser once
@@ -81,6 +104,7 @@ npm run verify                                      # confirm deleted rows are o
 
 | Command | What it does |
 |---|---|
+| `init` | Guided or manual setup of `.env` and `scrub.config.json`. Never overwrites existing files without asking. |
 | `auth` | OAuth 2.0 PKCE login. Tokens go to `.x_tokens.json` (mode 0600) and refresh automatically. |
 | `scan [--fresh] [--max-pages N]` | Reads the timeline. After the first full scan it only reads new posts. `--fresh` rereads everything and costs a full scan again. |
 | `classify [--limit N] [--relabel] [--config F] [--remove "a,b"] [--keep-only "a,b"] [--instructions "..."]` | Labels rows whose label is empty or was made under different criteria. The flags override the config file for one run. |
@@ -117,7 +141,7 @@ npm run typecheck
 npm test
 ```
 
-CI runs both on every push. Tests mock `fetch` and never touch the network.
+CI runs both on Node 22, 24 and 26 on every push, plus a build and `node dist/cli.js --help`. `npm run build` compiles to `dist/`. Tests mock `fetch` and never touch the network.
 
 ## License
 

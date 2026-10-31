@@ -4,6 +4,7 @@ import { ConfigError } from "./errors.ts";
 export type CommandModule = { run: (argv: string[]) => Promise<void> };
 
 export const commands = {
+  init: "Set up .env and scrub.config.json (guided or manual)",
   auth: "Log in to X (OAuth 2.0 PKCE) and verify the account",
   scan: "Fetch your recent posts, reposts, replies and quotes into data/posts.csv",
   classify: "Label each row remove / borderline / keep against your criteria",
@@ -16,6 +17,7 @@ export const commands = {
 export type CommandName = keyof typeof commands;
 
 export const loaders: Record<CommandName, () => Promise<CommandModule>> = {
+  init: () => import("./commands/init.ts"),
   auth: () => import("./commands/auth.ts"),
   scan: () => import("./commands/scan.ts"),
   classify: () => import("./commands/classify.ts"),

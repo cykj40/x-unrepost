@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { parseFlags, parsePositiveInt } from "../args.ts";
 import { AiResponseError, createChatClient, type JsonChat } from "../ai.ts";
-import { getConfig, paths } from "../config.ts";
+import { getAiConfig, paths } from "../config.ts";
 import { criteriaHash, loadCriteria, type Criteria } from "../criteria.ts";
 import { buildSystemPrompt } from "../prompt.ts";
 import { loadRows, saveRows } from "../store.ts";
@@ -205,7 +205,7 @@ export async function run(argv: string[], deps: ClassifyDeps = {}): Promise<void
     keepOnlyFlag: args.keepOnlyFlag,
     instructionsFlag: args.instructionsFlag,
   });
-  const chat = deps.chat ?? createChatClient(getConfig().ai);
+  const chat = deps.chat ?? createChatClient(getAiConfig());
   await classify({
     chat,
     criteria,

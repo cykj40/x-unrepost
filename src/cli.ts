@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { dispatch } from "./dispatch.ts";
 import { ConfigError } from "./errors.ts";
 
