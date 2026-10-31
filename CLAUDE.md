@@ -8,3 +8,4 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 - Every write to state is atomic and happens after each item. Commands must be resumable.
 - No request that writes to X may run without an explicit user command. Tests mock fetch.
 - Done = `npm run typecheck` and `npm test` pass.
+- CLI flags: use parseFlags from src/args.ts (strict). Never parseArgs with strict: false. Validate flags before touching config or the network.

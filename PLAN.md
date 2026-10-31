@@ -14,12 +14,39 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 - [x] **Phase 3** — Types and CSV store, with tests
 - [x] **Phase 4** — OAuth 2.0 PKCE login and token refresh
 - [x] **Phase 5** — X API client with rate-limit handling, with tests
-- [ ] **Phase 6** — `scan` command
-- [ ] **Phase 7** — `classify` command, with the prompt built from the criteria
+- [x] **Phase 6** — `scan` command
+- [ ] **Phase 7** — `classify` command, with the prompt built from the criteria *(code done, tests pass; waiting on the label check below)*
 - [ ] **Phase 8** — `review` command
 - [ ] **Phase 9** — `delete` command
 - [ ] **Phase 10** — `status`, README, final hardening
 - [ ] **Phase 11** — The real run *(you)*
+
+---
+
+## Resume here (end of session 1, Fri Oct 30)
+
+**State:** Phases 0 to 6 are done. Phase 7 (`classify`) is built and tested (109 tests pass). First real run labeled the 40 newest posts (35 keep, 5 borderline, 0 remove), which is expected because the newest posts were already cleaned by hand. The full `npm run classify` over all 3,218 rows then finished: **remove 1,075, borderline 631, keep 1,512** (159 batches; one batch needed a retry, which succeeded). Nothing has been quality-checked yet, and nothing has been deleted.
+
+**Real data:** `data/posts.csv` holds 3,218 rows: 2,639 reposts, 523 replies, 0 quotes, 56 posts. The scan is marked complete, so a plain `npm run scan` only reads new posts. Never use `--fresh` unless you want to re-pay for a full read.
+
+**Settings:** `AI_MODEL=gpt-6.1-terra` (switch to `gpt-6-luna` to save money). Criteria is `mode: remove`, topics `["politics"]`, plus the instructions from Phase 11 (hash `965b479f`).
+
+**Costs seen so far:** the full scan cost about $3 (about $0.001 per post read). The price of an un-repost or delete is **still unknown**. Measure it with `npm run delete -- --limit 5` in Phase 9 and check the credit balance before and after.
+
+**Do first tomorrow:**
+1. Check no rows were left as model errors: `grep -c "model error" data/posts.csv` should print 0.
+2. The counts above are the baseline. 631 borderline rows is a long manual review; if the label check shows the classifier is too cautious, tighten the `instructions` line (or switch `AI_MODEL`) and rerun `classify`.
+3. Read about 30 `remove` rows from different dates (wrong = costly deletions) and about 30 older `keep` rows (political ones = misses). Tune the `instructions` line in `scrub.config.json` if more than 2 or 3 are wrong. Changing it relabels everything automatically.
+4. Spot-check 5 reposts and 1 reply against x.com (text is the full original post, author and `target_id` are right). Confirm quotes really are 0.
+5. Tick Phase 7, commit (`feat: criteria-driven classification`), push.
+6. Start Phase 8 (`review`), then Phase 9 (`delete`, run it yourself).
+
+**Open items to fix later:**
+- Phase 10: the test script glob needs Node 22+ (raise `engines.node` or point at `test/`).
+- Phase 10: `auth` and `classify` validate the whole env, so each needs keys it doesn't use. Relax that for public users.
+- Phase 10: the stale comment in `src/ai.ts` should say the GPT-6 family.
+- If `classify` ever fails with a 400 about `response_format`, switch to structured outputs (`json_schema`).
+- `.env` contains live keys. Keep the tab closed when sharing screenshots.
 
 ---
 
