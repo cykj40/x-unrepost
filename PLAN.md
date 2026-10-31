@@ -8,12 +8,12 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 
 ## Master checklist
 
-- [ ] **Phase 0** — Manual setup: X app, OpenAI key, empty GitHub repo *(you, no agent)*
-- [ ] **Phase 1** — Scaffold, CLAUDE.md, first push *(before any keys exist)*
-- [ ] **Phase 2** — Config: env validation and the scrub criteria file
-- [ ] **Phase 3** — Types and CSV store, with tests
-- [ ] **Phase 4** — OAuth 2.0 PKCE login and token refresh
-- [ ] **Phase 5** — X API client with rate-limit handling, with tests
+- [x] **Phase 0** — Manual setup: X app, OpenAI key, empty GitHub repo *(you, no agent)*
+- [x] **Phase 1** — Scaffold, CLAUDE.md, first push *(before any keys exist)*
+- [x] **Phase 2** — Config: env validation and the scrub criteria file
+- [x] **Phase 3** — Types and CSV store, with tests
+- [x] **Phase 4** — OAuth 2.0 PKCE login and token refresh
+- [x] **Phase 5** — X API client with rate-limit handling, with tests
 - [ ] **Phase 6** — `scan` command
 - [ ] **Phase 7** — `classify` command, with the prompt built from the criteria
 - [ ] **Phase 8** — `review` command
@@ -38,6 +38,7 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 | Tokens | `.x_tokens.json`, file mode `0600`, gitignored |
 | Resumability | Every command skips rows that are already done. State is saved after **every** item or page |
 | AI | Raw `fetch` to an OpenAI-compatible `/chat/completions` endpoint, so OpenAI and xAI share one client |
+| CLI flags | Every command parses flags with `parseFlags` from `src/args.ts` (`parseArgs` with `strict: true`, no positionals). An unknown or malformed flag is a one-line error and exit 1, never silently ignored. Never call `parseArgs` with `strict: false`. Commands validate their flags **before** touching config or the network |
 | Safety | `delete` defaults to `--types repost`. Any other type means you must type `DELETE` to confirm. `--dry-run` never sends a request that writes |
 
 ### X API facts the agents need (verified Oct 2026 against docs.x.com)
@@ -58,8 +59,8 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 
 ### AI facts
 
-- **Primary provider: OpenAI.** Base URL `https://api.openai.com/v1`, model `gpt-5.4-mini` (set through `AI_MODEL`, which is **required** for OpenAI so no model name is hard-coded that might go stale)
-- GPT-5-family models are reasoning models. Set the lowest `reasoning_effort` the model accepts (`none` or `minimal`), and **leave `temperature` out**, because these models reject anything other than the default. **The agent should check both against platform.openai.com/docs for the chosen model before coding them.**
+- **Primary provider: OpenAI.** Base URL `https://api.openai.com/v1`, model `gpt-6-luna` (set through `AI_MODEL`, which is **required** for OpenAI so no model name is hard-coded that might go stale). Per OpenAI's docs (Oct 2026): $0.10 per 1M input tokens, $0.50 per 1M output, 1M-token context, supports Chat Completions, described as the most efficient model for focused, high-volume tasks. `gpt-6.1-terra` ($1.00 / $5.00) is the step up if Luna's labels turn out too noisy
+- These are reasoning models. The default reasoning effort is `medium`, so **always send `reasoning_effort: "none"`** (it's a listed option for Luna and Terra; `minimal` is not). The docs don't say whether `temperature` is accepted, so **leave it out**. **The agent should verify both, and whether `response_format: { type: "json_object" }` works, against the model page at developers.openai.com before coding them.** If JSON mode is rejected, use structured outputs (`json_schema`) instead
 - Secondary provider: xAI, base URL `https://api.x.ai/v1`, model `grok-4.3`. xAI retired `grok-3` and the `grok-4-fast` models on May 15, 2026
 - Use `response_format: { type: "json_object" }` and validate every response with zod
 
@@ -92,7 +93,7 @@ X_CLIENT_SECRET=
 AI_PROVIDER=openai         # openai | xai
 OPENAI_API_KEY=
 XAI_API_KEY=
-AI_MODEL=gpt-5.4-mini      # required for openai; optional for xai (default grok-4.3)
+AI_MODEL=gpt-6-luna        # required for openai; optional for xai (default grok-4.3)
 ```
 
 **scrub.config.example.json:**
@@ -189,10 +190,11 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 ## Phase 6 — `scan`
 
 **Prompt:**
-> Read PLAN.md and CLAUDE.md. Do Phase 6 only. Implement `src/commands/scan.ts`. Get the user via `me()`, then page through `userTweets` (resume from `pagination_token` in `data/scan_state.json` unless `--fresh` is passed). For each tweet, find its type from `referenced_tweets` (retweeted→repost, replied_to→reply, quoted→quote, none→post; a repost wins if more than one applies). For a repost, set `target_id` to the source id, and set `text`/`author` from `includes.tweets` and `includes.users`. Prefer `note_tweet.text`. For a reply or quote, put the referenced text into `context` when it's available. After **each page**, upsert the rows and save the next token. When pagination ends, mark the scan complete. Print progress per page and a final count by type.
+> Read PLAN.md and CLAUDE.md. Do Phase 6 only. Implement `src/commands/scan.ts`. Get the user via `me()`, then page through `userTweets` (resume from `pagination_token` in `data/scan_state.json` unless `--fresh` is passed). For each tweet, find its type from `referenced_tweets` (retweeted→repost, replied_to→reply, quoted→quote, none→post; a repost wins if more than one applies). For a repost, set `target_id` to the source id, and set `text`/`author` from `includes.tweets` and `includes.users`. Prefer `note_tweet.text`. For a reply or quote, put the referenced text into `context` when it's available. After **each page**, upsert the rows and save the next token. When pagination ends, mark the scan complete. Print progress per page and a final count by type. Add a `--max-pages N` flag that stops after N pages and leaves the scan marked incomplete, so the next run resumes from the saved token. Use `author_id` with `includes.users` to set a repost's `author`.
 
 **Done when:**
-- [ ] `npm run scan` fills `data/posts.csv`. Spot-check 5 reposts against x.com: full text, correct author, `target_id` matches the original post
+- [ ] First run `npm run scan -- --max-pages 1` (100 posts, cheap). Spot-check 5 reposts against x.com: full text, correct author, `target_id` matches the original post
+- [ ] Then `npm run scan` finishes the rest from the saved token
 - [ ] Ctrl+C mid-scan, then rerun → it picks up where it stopped with no duplicate ids
 - [ ] Type counts look right (expect around 1,355 reposts)
 - [ ] Commit: `feat: scan command`
@@ -202,7 +204,7 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 ## Phase 7 — `classify`
 
 **Prompt:**
-> Read PLAN.md and CLAUDE.md. Do Phase 7 only. Create `src/ai.ts`: an OpenAI-compatible chat client over fetch using `config.ai`, with JSON mode, the lowest `reasoning_effort` the model accepts, no `temperature` parameter (follow the AI facts in PLAN.md and confirm against OpenAI's docs for `AI_MODEL`), and retries on 429 and 5xx. Create `src/prompt.ts` with `buildSystemPrompt(criteria)`. It must produce a prompt from the criteria using the label rules below and must never hard-code a topic. Implement `classify`: load the criteria (accept `--config`, `--remove`, `--keep-only`) and compute its hash. Take rows where `label` is empty **or** `criteria_hash` differs from the current hash, skipping rows whose `status` is deleted or gone. Send them in batches of 20 as `[{id, type, author, text, context}]`, and expect `{"results":[{"id","label","topic","reason"}]}`. Validate with zod. Every input id must come back exactly once; if not, retry that batch once, then mark the leftover rows `borderline` with reason "model error". Write the label, topic, reason and criteria_hash, clear `reviewed`, and save after each batch. Before the run, print the active criteria in one line and how many rows will be (re)labeled. Flags: `--limit N` and `--relabel` (forces every row). At the end, print counts per label and the top 5 matched topics. Test `buildSystemPrompt` for both modes with a snapshot.
+> Read PLAN.md and CLAUDE.md. Do Phase 7 only. Create `src/ai.ts`: an OpenAI-compatible chat client over fetch using `config.ai`, with JSON output, `reasoning_effort: "none"`, no `temperature` parameter (follow the AI facts in PLAN.md and confirm JSON mode vs structured outputs against OpenAI's docs for `AI_MODEL`), and retries on 429 and 5xx. Create `src/prompt.ts` with `buildSystemPrompt(criteria)`. It must produce a prompt from the criteria using the label rules below and must never hard-code a topic. Implement `classify`: load the criteria (accept `--config`, `--remove`, `--keep-only`) and compute its hash. Take rows where `label` is empty **or** `criteria_hash` differs from the current hash, skipping rows whose `status` is deleted or gone. Send them in batches of 20 as `[{id, type, author, text, context}]`, and expect `{"results":[{"id","label","topic","reason"}]}`. Validate with zod. Every input id must come back exactly once; if not, retry that batch once, then mark the leftover rows `borderline` with reason "model error". Write the label, topic, reason and criteria_hash, clear `reviewed`, and save after each batch. Before the run, print the active criteria in one line and how many rows will be (re)labeled. Flags: `--limit N` and `--relabel` (forces every row). At the end, print counts per label and the top 5 matched topics. Test `buildSystemPrompt` for both modes with a snapshot.
 
 **Label rules (the prompt template must encode these):**
 - **`mode: remove`:** `remove` = the post's main subject is one of the topics. `keep` = it isn't. `borderline` = the topic is part of the post but not its main subject, or you're unsure.
@@ -251,7 +253,7 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 ## Phase 10 — `status`, README, hardening
 
 **Prompt:**
-> Read PLAN.md and CLAUDE.md. Do Phase 10 only. Implement `status`: the active criteria, counts by type × label × status, the top matched topics, how many rows are stale (hash mismatch), whether the scan is complete, and an ETA for the remaining deletes. Write README.md for public users: what the tool does, the content-scrubber idea with 3 example configs (remove politics, remove sports and politics, keep only tech), X app setup, the OpenAI key, install (`npm install`), the command walkthrough, rate limits and runtime, a cost note, the safety model, the files you must never commit, and how to re-verify. Add a GitHub Actions workflow that runs typecheck and tests on push. Review the whole codebase for: tokens or keys in logs, writes that aren't atomic, any write path that a dry run can reach, hard-coded topics, and unhandled promise rejections. Fix what you find and list the fixes.
+> Read PLAN.md and CLAUDE.md. Do Phase 10 only. Implement `status`: the active criteria, counts by type × label × status, the top matched topics, how many rows are stale (hash mismatch), whether the scan is complete, and an ETA for the remaining deletes. Write README.md for public users: what the tool does, the content-scrubber idea with 3 example configs (remove politics, remove sports and politics, keep only tech), X app setup, the OpenAI key, install (`npm install`), the command walkthrough, rate limits and runtime, a cost note, the safety model, the files you must never commit, and how to re-verify. Add a GitHub Actions workflow that runs typecheck and tests on push. Review the whole codebase for: tokens or keys in logs, writes that aren't atomic, any write path that a dry run can reach, hard-coded topics, and unhandled promise rejections. Fix what you find and list the fixes. Also fix the test script: `node --test` globs need Node 22+, so either raise `engines.node` to `>=22` or point the script at the `test/` directory.
 
 **Done when:**
 - [ ] CI is green on GitHub
