@@ -1,8 +1,7 @@
 import { readFileSync } from "node:fs";
-import { parseArgs } from "node:util";
 import { z } from "zod";
 import { getConfig, paths } from "../config.ts";
-import { ConfigError } from "../errors.ts";
+import { parseFlags, parsePositiveInt } from "../args.ts";
 import { loadRows, upsertRows, writeFileAtomic } from "../store.ts";
 import { POST_TYPES, PostRow } from "../types.ts";
 import { XClient, type UserTweetsPage, type XTweet } from "../xclient.ts";
@@ -148,29 +147,22 @@ export async function scan(opts: ScanOptions): Promise<ScanResult> {
   return { complete, pages, newPosts, totals };
 }
 
-export async function run(argv: string[]): Promise<void> {
-  let values: { fresh?: boolean; "max-pages"?: string };
-  try {
-    ({ values } = parseArgs({
-      args: argv,
-      options: { fresh: { type: "boolean" }, "max-pages": { type: "string" } },
-      strict: true,
-    }));
-  } catch (err) {
-    throw new ConfigError([err instanceof Error ? err.message : "invalid arguments"]);
-  }
+export type ScanDeps = Partial<ScanOptions>;
 
-  let maxPages: number | undefined;
-  if (values["max-pages"] !== undefined) {
-    maxPages = Number(values["max-pages"]);
-    if (!Number.isInteger(maxPages) || maxPages < 1) throw new ConfigError(["--max-pages must be a positive integer"]);
-  }
+/** `deps` lets tests inject a client and file paths; the CLI passes none. */
+export async function run(argv: string[], deps: ScanDeps = {}): Promise<void> {
+  const values = parseFlags("scan", argv, {
+    fresh: { type: "boolean" },
+    "max-pages": { type: "string" },
+  });
+  const maxPages = parsePositiveInt("--max-pages", values["max-pages"]);
 
-  getConfig(); // fail fast on missing credentials
+  const client = deps.client ?? (getConfig(), new XClient()); // getConfig fails fast on missing credentials
   await scan({
-    client: new XClient(),
-    postsCsv: paths.postsCsv,
-    scanStateFile: paths.scanState,
+    client,
+    postsCsv: deps.postsCsv ?? paths.postsCsv,
+    scanStateFile: deps.scanStateFile ?? paths.scanState,
+    log: deps.log,
     fresh: values.fresh,
     maxPages,
   });
