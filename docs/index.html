@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>x-unrepost — clean up your X account by topic</title>
+<meta name="description" content="A local, open-source tool that uses an LLM to label your X posts against rules you set, shows a dry run, then un-reposts or deletes what matches.">
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #17181a; --muted: #5d6168; --line: #dfe1e4;
+    --card: #ffffff; --code: #f0f1f3; --accent: #1d4ed8; --warn: #9a3412; --warn-bg: #fff4ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101113; --fg: #ececee; --muted: #a0a4ab; --line: #2a2c31;
+      --card: #17181b; --code: #1e2024; --accent: #8ab4ff; --warn: #fdba74; --warn-bg: #2a1c12;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 72px; }
+  h1 { font-size: 2.2rem; line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.02em; }
+  h2 { font-size: 1.35rem; margin: 44px 0 10px; letter-spacing: -0.01em; }
+  p, li { color: var(--fg); }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0 0 20px; }
+  a { color: var(--accent); }
+  .btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 6px; }
+  .btn { display: inline-block; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--fg); text-decoration: none; font-weight: 600; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn.primary { color: #0b1020; } }
+  pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; }
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; margin: 12px 0; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  pre code { background: none; padding: 0; }
+  ol, ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.95rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .note { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>x-unrepost</h1>
+  <p class="lede">Clean up your X account by topic. You describe what to remove (politics, sports, anything) or what to keep (only tech). An LLM labels each post, you read a dry run, then the tool un-reposts or deletes the matches. It runs on your own machine.</p>
+  <div class="btns">
+    <a class="btn primary" href="https://github.com/cykj40/x-unrepost">View on GitHub</a>
+    <a class="btn" href="#privacy">Privacy</a>
+  </div>
+
+  <h2>What it does</h2>
+  <ol>
+    <li><strong>Scan.</strong> Reads your recent reposts, replies, quotes and posts into a local CSV.</li>
+    <li><strong>Classify.</strong> An LLM labels each row <code>remove</code>, <code>borderline</code> or <code>keep</code> against rules in a small config file.</li>
+    <li><strong>Dry run.</strong> Shows exactly what would be deleted, with counts and an ETA. Nothing is sent to X.</li>
+    <li><strong>Delete.</strong> Un-reposts by default. Deleting your own replies, quotes and posts is permanent and requires you to type <code>DELETE</code>.</li>
+  </ol>
+  <p>Every command saves progress after each item, so you can stop and resume. It respects X rate limits and waits them out on its own.</p>
+
+  <h2>Example rules</h2>
+<pre><code>{
+  "mode": "remove",
+  "topics": ["politics"],
+  "instructions": "NOT political: stocks, finance, AI and tech industry debates."
+}</code></pre>
+  <p>Or flip it: <code>"mode": "keep_only"</code> with topics like software engineering and coding agents, and everything else becomes a candidate for removal.</p>
+
+  <h2>Get started</h2>
+  <p>Requires Node 22 or newer, an X developer app with pay-per-use credits, and an OpenAI or xAI API key.</p>
+<pre><code>git clone https://github.com/cykj40/x-unrepost.git
+cd x-unrepost
+npm install
+npm run init</code></pre>
+  <p><code>init</code> offers guided setup (it checks your keys as you enter them) or manual setup. Then:</p>
+<pre><code>npm run auth
+npm run scan
+npm run classify
+npm run delete -- --include-borderline --dry-run</code></pre>
+
+  <h2>Limits and costs</h2>
+  <ul>
+    <li>The X API exposes only your most recent ~3,200 posts. Older ones can't be scanned or deleted yet.</li>
+    <li>Un-reposts are limited to 50 per 15 minutes. About 1,400 reposts takes roughly 7 hours.</li>
+    <li>Measured on one account: scanning about $3 per 3,200 posts, classifying about $1, un-reposts about 0.7 cents each. These are not guarantees; check current prices.</li>
+    <li>The LLM makes mistakes. Read the dry run before every real delete.</li>
+  </ul>
+  <div class="note"><strong>Permanent deletes.</strong> Un-reposting is reversible (you can repost again). Deleting replies, quotes and posts cannot be undone. This is an independent project, not affiliated with or endorsed by X Corp. Use it at your own risk.</div>
+
+  <h2 id="privacy">Privacy</h2>
+  <p>x-unrepost has no server and no accounts. The author does not collect, receive or store your data, and this page has no analytics or cookies. Here is exactly where your data goes when you run the tool:</p>
+  <table>
+    <tr><th>Data</th><th>Where it goes</th></tr>
+    <tr><td>Your posts, read from X</td><td>From X to your machine, using your own X app and login. Stored in a local CSV.</td></tr>
+    <tr><td>Post text used for labeling</td><td>Sent to the AI provider you configure (OpenAI or xAI) so it can label each post. For each post that is the id, type, author username, the text, and, for replies and quotes, the text of the post being replied to or quoted. That provider's own terms and privacy policy apply, so check them before you run <code>classify</code>.</td></tr>
+    <tr><td>Delete and un-repost requests</td><td>Sent to X, using your credentials.</td></tr>
+    <tr><td>Your API keys and login tokens</td><td>Stored on your machine only (<code>.env</code> and <code>.x_tokens.json</code>, mode 0600), sent only to X and to your AI provider as needed to authenticate, and never logged.</td></tr>
+  </table>
+  <p><strong>What's stored locally:</strong> <code>data/posts.csv</code> (post text, labels and status), <code>data/scan_state.json</code>, your keys and tokens, and your <code>scrub.config.json</code>, in the project folder or in <code>~/.x-unrepost</code>. Delete those files to remove everything. To cut off access, revoke the app under X Settings, Security and account access, Connected apps, and delete your API keys with your AI provider.</p>
+  <p><strong>Never commit or share</strong> <code>.env</code>, <code>.x_tokens.json</code>, <code>scrub.config.json</code> or <code>data/</code>.</p>
+  <p>Questions or concerns: open an issue on <a href="https://github.com/cykj40/x-unrepost/issues">GitHub</a>.</p>
+
+  <footer>
+    x-unrepost is open source under the MIT license. Built by <a href="https://github.com/cykj40">Cyrus Khiabani</a> (<a href="https://x.com/cyjkcodes">@cyjkcodes</a>). Privacy section last updated October 31, 2026.
+  </footer>
+</main>
+</body>
+</html>

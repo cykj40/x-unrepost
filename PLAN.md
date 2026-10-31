@@ -16,54 +16,12 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 - [x] **Phase 5** — X API client with rate-limit handling, with tests
 - [x] **Phase 6** — `scan` command
 - [x] **Phase 7** — `classify` command, with the prompt built from the criteria
-- [x] **Phase 8** — `review` command *(skipped on purpose: borderline rows were deleted too)*
-- [x] **Phase 9** — `delete` command *(built, tested, and run for real: 1,382 reposts un-reposted)*
-- [x] **Phase 10** — `status`, `verify`, README, final hardening *(pushed; CI green; fresh clone passes 128/128 on Node 22; verify run on the real account: clean)*
-- [x] **Phase 11** — The real run *(you)*: 1,382 reposts + 66 replies/posts deleted; x.com checked
-- [x] **Phase 12** — Installable CLI and `init` setup wizard (guided or manual) *(pushed; CI green on Node 22/24/26; tested from an installed tarball in a throwaway folder)*
+- [x] **Phase 8** — `review` command *(not implemented: use `delete --include-borderline` or tighten the criteria)*
+- [x] **Phase 9** — `delete` command
+- [x] **Phase 10** — `status`, `verify`, README, final hardening
+- [x] **Phase 11** — Running it on a real account *(you; steps below)*
+- [x] **Phase 12** — Installable CLI and `init` setup wizard (guided or manual)
 - [ ] **Phase 13** — `import-archive`, to reach posts older than the API's ~3,200
-
----
-
-## Resume here (end of session 2, Sat Oct 31)
-
-**State:** Phases 0 to 12 are done. The account is scrubbed of politics under the criteria: `delete --include-borderline` un-reposted **1,382 reposts** (1,055 remove + 327 borderline; 0 failed, 0 gone), and a second run with `--types reply,post --include-borderline` deleted **66 replies and posts permanently** (58 replies, 8 posts; decision: "I'd rather be safe than sorry", nothing held back). The user scrolled their profile on x.com and found no political content; finance and tech reposts were kept. Final `classify` shows remove 0, borderline 0, keep 1,774 (1,840 before the last delete minus 66).
-
-**Final labels (hash `2a5d30c8`, run 2):** remove 1,096, borderline 352, keep 1,770 over 3,218 rows. The dry-run list was all reposts, all about politics; a few arguable rows (USDA/Rollins nutrition, Sec. Kennedy food, Lonsdale taxes, an Iranian-rescue post) were accepted under "if there's any doubt, delete".
-
-**Real data:** `data/posts.csv` holds 3,222 rows after the last scan (repost 2,641, reply 525, quote 0, post 56). The 4 newest posts are not labeled yet: run `npm run classify` (costs a fraction of a cent). Note: `scan` is incremental (it stops at the first fully known page), so it does NOT re-check deleted posts. Verifying deletions means scrolling x.com, or the `verify` command planned in Phase 10. Never use `--fresh` unless you want to re-pay about $3.
-
-**Settings:** `AI_MODEL=gpt-6.1-terra`. Criteria: `mode: remove`, topics `["politics"]`, plus the Phase 11 instructions.
-
-**Costs measured (Oct 30-31):**
-- Full scan of 3,218 posts: about $3 (about $0.001 per post read)
-- Classification: about $1 per full run (two runs)
-- Un-reposts: about **$10.13 for 1,382, roughly $0.0073 each** (balance went from about $26.93 to $16.80; the start figure was approximate and includes any other API calls)
-- Total for this account: about $15
-- Un-repost limit is **50 per 15 minutes**: the run took about 7 hours. The tool waits out the window by itself. The 5-item test used part of the first window.
-- Cost of `deleteTweet` (replies/posts) is not measured yet (66 rows, one rate-limit window of about 20 minutes).
-
-**Decisions:**
-- Delete anything in doubt (`--include-borderline`); skip `review`.
-- Finance, stocks, company news and AI/tech industry content is NOT political and must be kept.
-- Un-reposts are reversible; replies and posts are permanent and need a typed `DELETE`.
-- Honesty rule for the README and any public claims: state only what we measured or verified. No speed comparisons with paid tools. Say plainly: the API window is about 3,200 recent posts, un-reposts are rate-limited to 50 per 15 minutes, and users bring their own X credits and OpenAI key.
-
-**Do next:**
-1. Send the cost of the 66 permanent deletes (balance before/after) so the README can quote a real figure; not measured yet.
-2. Commit and push any uncommitted work (`feat: delete command` was the Phase 9 commit). Check `git status` shows no `.env`, `.x_tokens.json`, `scrub.config.json` or `data/`.
-3. Phase 13 (`import-archive`). Request the X data archive first (X Settings > Your account > Download an archive of your data); it takes 24-48 hours.
-
-**Notes from Phase 12 testing:** the saved `init` instructions text matched the input exactly (494 chars). A "missing space" seen in a terminal copy was a soft-wrap copy artifact, not a bug. Use throwaway-folder tests via a script, never pasted `cd $(mktemp -d)` chains, and never leave `<placeholders>` in commands or prompts.
-
-**Open items (mostly done; check before closing):**
-- The test script glob needs Node 22+ (raise `engines.node` or point at `test/`).
-- `auth` and `classify` validate the whole env, so each needs keys it doesn't use. Relax that for public users.
-- The stale comment in `src/ai.ts` (about line 61) should say the GPT-6 family.
-- Make the skipped config test hermetic (it depends on a real `scrub.config.json`).
-- Add a `verify` command: read the first page or two of the timeline (about $0.10-0.20) and flag any row marked deleted that still appears.
-- If `classify` ever fails with a 400 about `response_format`, switch to structured outputs (`json_schema`).
-- `.env` contains live keys. Keep the tab closed when sharing screenshots.
 
 ---
 
@@ -212,7 +170,7 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 > Read PLAN.md and CLAUDE.md. Do Phase 4 only. Create `src/auth.ts` using the X OAuth facts in PLAN.md. `login()`: generate a PKCE verifier and S256 challenge plus a random `state`, start a `node:http` server on 127.0.0.1:8765 that handles `/callback`, open the browser (`open` on macOS, `xdg-open` on Linux, otherwise print the URL), verify `state`, exchange the code using Basic auth, save tokens with `expires_at` to `.x_tokens.json` with mode 0600, show a "you can close this tab" page, and shut the server down. Add a 5-minute timeout. `getAccessToken()`: if the token is within 60s of expiry, refresh it and save the **rotated** refresh token; if the refresh fails, fall back to `login()`. Wire up the `auth` command to run login, then call `GET /2/users/me` and print `Logged in as @username (id)`. Never log tokens.
 
 **Done when:**
-- [ ] `npm run auth` opens the browser once and prints `Logged in as @cyjkcodes`
+- [ ] `npm run auth` opens the browser once and prints `Logged in as @yourhandle`
 - [ ] Running it again without deleting the token file doesn't open the browser
 - [ ] Setting `expires_at` to 0 by hand → the next run refreshes silently and the file holds a new refresh token
 - [ ] `ls -l .x_tokens.json` shows `-rw-------`
@@ -240,7 +198,7 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 - [ ] First run `npm run scan -- --max-pages 1` (100 posts, cheap). Spot-check 5 reposts against x.com: full text, correct author, `target_id` matches the original post
 - [ ] Then `npm run scan` finishes the rest from the saved token
 - [ ] Ctrl+C mid-scan, then rerun → it picks up where it stopped with no duplicate ids
-- [ ] Type counts look right (expect around 1,355 reposts)
+- [ ] Type counts look right (compare with your profile)
 - [ ] Commit: `feat: scan command`
 
 ---
@@ -298,7 +256,7 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 ## Phase 10 — `status`, README, hardening
 
 **Prompt:**
-> Read PLAN.md and CLAUDE.md. Do Phase 10 only. Also implement `verify`: fetch the first 1-2 pages of the user's timeline and report any row marked `deleted` in the CSV that still appears (cost about $0.10-0.20), since `scan` is incremental and never re-checks deletions. Implement `status`: the active criteria, counts by type × label × status, the top matched topics, how many rows are stale (hash mismatch), whether the scan is complete, and an ETA for the remaining deletes. Write README.md for public users: what the tool does, the content-scrubber idea with 3 example configs (remove politics, remove sports and politics, keep only tech), X app setup, the OpenAI key, install (`npm install`), the command walkthrough, rate limits and runtime, a cost note using the measured numbers in "Resume here" (scan about $3 per 3,200 posts, classify about $1, un-repost about 0.7 cents each), the safety model, the files you must never commit, and how to re-verify. Add a GitHub Actions workflow that runs typecheck and tests on push. Review the whole codebase for: tokens or keys in logs, writes that aren't atomic, any write path that a dry run can reach, hard-coded topics, and unhandled promise rejections. Fix what you find and list the fixes. Also fix the test script: `node --test` globs need Node 22+, so either raise `engines.node` to `>=22` or point the script at the `test/` directory.
+> Read PLAN.md and CLAUDE.md. Do Phase 10 only. Also implement `verify`: fetch the first 1-2 pages of the user's timeline and report any row marked `deleted` in the CSV that still appears (cost about $0.10-0.20), since `scan` is incremental and never re-checks deletions. Implement `status`: the active criteria, counts by type × label × status, the top matched topics, how many rows are stale (hash mismatch), whether the scan is complete, and an ETA for the remaining deletes. Write README.md for public users: what the tool does, the content-scrubber idea with 3 example configs (remove politics, remove sports and politics, keep only tech), X app setup, the OpenAI key, install (`npm install`), the command walkthrough, rate limits and runtime, a cost note using measured figures (scan about $3 per 3,200 posts, classify about $1, un-repost about 0.7 cents each), the safety model, the files you must never commit, and how to re-verify. Add a GitHub Actions workflow that runs typecheck and tests on push. Review the whole codebase for: tokens or keys in logs, writes that aren't atomic, any write path that a dry run can reach, hard-coded topics, and unhandled promise rejections. Fix what you find and list the fixes. Also fix the test script: `node --test` globs need Node 22+, so either raise `engines.node` to `>=22` or point the script at the `test/` directory.
 
 **Done when:**
 - [ ] CI is green on GitHub
@@ -311,14 +269,17 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 
 ---
 
-## Phase 11 — The real run (you)
+## Phase 11 — Running it on your own account (you)
 
-**My config (`scrub.config.json`): political reposts and replies**
+Not an agent phase: run these yourself and watch them.
+
+Example `scrub.config.json` for removing politics while keeping finance and tech talk:
+
 ```json
 {
   "mode": "remove",
   "topics": ["politics"],
-  "instructions": "Politics: elections, politicians, parties, government policy fights, partisan commentary, culture-war topics, taking sides in geopolitical conflicts, presidential and administration statements or actions. NOT political: stocks, finance, investing, company news (Palantir), AI and tech industry debates, even if a government is mentioned. A reply is political only if it takes a political stance. Link-only reposts: political or government accounts are political; tech or finance accounts, keep."
+  "instructions": "Politics: elections, politicians, parties, government policy fights, partisan commentary, culture-war topics. NOT political: stocks, finance, investing, company news, AI and tech industry debates, even if a government is mentioned. A reply is political only if it takes a political stance."
 }
 ```
 
@@ -326,17 +287,17 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 npm run auth
 npm run scan
 npm run classify
-npm run review                                      # optional: skip it if you delete anything in doubt
 npm run delete -- --include-borderline --dry-run    # check the full list first
-npm run delete -- --include-borderline              # step 1: reposts only, remove + borderline (you can re-repost)
-npm run delete -- --types reply                     # step 2 (optional): replies (PERMANENT, type DELETE)
-npm run scan && npm run classify                    # picks up new posts only (incremental); does NOT re-check deletions
-# verify: scroll your profile on x.com, or use `npm run verify` once Phase 10 adds it. `scan --fresh` costs about $3
+npm run delete -- --include-borderline              # reposts only (reversible)
+npm run delete -- --types reply,post --include-borderline --dry-run
+npm run delete -- --types reply,post --include-borderline   # PERMANENT: type DELETE to confirm
+npm run verify                                      # spot-check that deleted rows are gone
 ```
-Actual result: 1,382 reposts un-reposted in about 7 hours at 50 per 15 min, about $10. Replies and posts are still to decide.
 
-- [ ] Want a different cleanup later? Edit `scrub.config.json` and rerun `classify`. It relabels only what's left
-- [ ] Stop your Mac from sleeping during long runs: `caffeinate -i npm run delete`
+- [ ] Read the dry run before every real delete. The LLM makes mistakes
+- [ ] Changing the cleanup later: edit `scrub.config.json` and rerun `classify`; it relabels only what is left
+- [ ] Un-reposts are limited to 50 per 15 minutes, so large accounts take hours. Stop your Mac from sleeping during long runs (`caffeinate -i`)
+- [ ] `scan` is incremental after the first full scan, so it does not re-check deletions; use `verify` or look at your profile
 - [ ] Never commit or share `.env`, `.x_tokens.json`, `scrub.config.json`, or `data/`
 
 ---
