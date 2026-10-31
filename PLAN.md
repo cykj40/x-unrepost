@@ -20,14 +20,14 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 - [x] **Phase 9** — `delete` command *(built, tested, and run for real: 1,382 reposts un-reposted)*
 - [x] **Phase 10** — `status`, `verify`, README, final hardening *(pushed; CI green; fresh clone passes 128/128 on Node 22; verify run on the real account: clean)*
 - [x] **Phase 11** — The real run *(you)*: 1,382 reposts + 66 replies/posts deleted; x.com checked
-- [ ] **Phase 12** — Installable CLI and `init` setup wizard (guided or manual)
+- [x] **Phase 12** — Installable CLI and `init` setup wizard (guided or manual) *(pushed; CI green on Node 22/24/26; tested from an installed tarball in a throwaway folder)*
 - [ ] **Phase 13** — `import-archive`, to reach posts older than the API's ~3,200
 
 ---
 
 ## Resume here (end of session 2, Sat Oct 31)
 
-**State:** Phases 0 to 11 are done. The account is scrubbed of politics under the criteria: `delete --include-borderline` un-reposted **1,382 reposts** (1,055 remove + 327 borderline; 0 failed, 0 gone), and a second run with `--types reply,post --include-borderline` deleted **66 replies and posts permanently** (58 replies, 8 posts; decision: "I'd rather be safe than sorry", nothing held back). The user scrolled their profile on x.com and found no political content; finance and tech reposts were kept. Final `classify` shows remove 0, borderline 0, keep 1,774 (1,840 before the last delete minus 66).
+**State:** Phases 0 to 12 are done. The account is scrubbed of politics under the criteria: `delete --include-borderline` un-reposted **1,382 reposts** (1,055 remove + 327 borderline; 0 failed, 0 gone), and a second run with `--types reply,post --include-borderline` deleted **66 replies and posts permanently** (58 replies, 8 posts; decision: "I'd rather be safe than sorry", nothing held back). The user scrolled their profile on x.com and found no political content; finance and tech reposts were kept. Final `classify` shows remove 0, borderline 0, keep 1,774 (1,840 before the last delete minus 66).
 
 **Final labels (hash `2a5d30c8`, run 2):** remove 1,096, borderline 352, keep 1,770 over 3,218 rows. The dry-run list was all reposts, all about politics; a few arguable rows (USDA/Rollins nutrition, Sec. Kennedy food, Lonsdale taxes, an Iranian-rescue post) were accepted under "if there's any doubt, delete".
 
@@ -52,9 +52,11 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 **Do next:**
 1. Send the cost of the 66 permanent deletes (balance before/after) so the README can quote a real figure; not measured yet.
 2. Commit and push any uncommitted work (`feat: delete command` was the Phase 9 commit). Check `git status` shows no `.env`, `.x_tokens.json`, `scrub.config.json` or `data/`.
-3. Phase 10, then 12, then 13.
+3. Phase 13 (`import-archive`). Request the X data archive first (X Settings > Your account > Download an archive of your data); it takes 24-48 hours.
 
-**Open items to fix later (Phase 10):**
+**Notes from Phase 12 testing:** the saved `init` instructions text matched the input exactly (494 chars). A "missing space" seen in a terminal copy was a soft-wrap copy artifact, not a bug. Use throwaway-folder tests via a script, never pasted `cd $(mktemp -d)` chains, and never leave `<placeholders>` in commands or prompts.
+
+**Open items (mostly done; check before closing):**
 - The test script glob needs Node 22+ (raise `engines.node` or point at `test/`).
 - `auth` and `classify` validate the whole env, so each needs keys it doesn't use. Relax that for public users.
 - The stale comment in `src/ai.ts` (about line 61) should say the GPT-6 family.
