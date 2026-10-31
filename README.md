@@ -4,6 +4,8 @@ A content scrubber for your X account. You describe what to clean in a small con
 
 You bring your own X API credits and your own OpenAI (or xAI) key. Everything runs locally and your keys stay in `.env`.
 
+> **Disclaimer:** this is an independent project, not affiliated with or endorsed by X Corp. It can permanently delete your posts: replies, quotes and posts cannot be undone. Read the `--dry-run` output before you delete anything. Use it at your own risk.
+
 ## How it works
 
 1. `scan` reads your timeline into `data/posts.csv`.
@@ -50,20 +52,21 @@ Labels are generic. `borderline` means the topic is part of the post but not its
 
 ## Setup
 
-Requires Node 22 or newer.
+Requires Node 22 or newer. The package is not published to npm, so you run it from a clone:
 
 ```
-npm install -g x-unrepost        # or run it without installing: npx x-unrepost <command>
-mkdir my-scrub && cd my-scrub
-x-unrepost init
+git clone https://github.com/cykj40/x-unrepost.git
+cd x-unrepost
+npm install
+npm run init
 ```
 
-`init` asks whether you want **Guided** or **Manual** setup.
+Every command runs as `npm run <command>`; put flags after `--`, for example `npm run scan -- --max-pages 1`.
+
+`init` asks whether you want **Guided** or **Manual** setup. It writes into the folder you run it from, which for `npm run init` is the clone.
 
 - **Guided** asks for your X Client ID and Secret (the secret is hidden) and your AI key, checks each one with a real request so a typo fails now, writes `.env` (mode 0600), then helps you build `scrub.config.json` (remove or keep only, topics from presets or your own, optional instructions up to 500 characters) and asks you to confirm it. It also adds `.env`, `.x_tokens.json`, `scrub.config.json` and `data/` to `.gitignore` when the folder is a git repo.
 - **Manual** copies `.env.example` and `scrub.config.example.json` into the current folder (never overwriting anything that exists) and tells you what to fill in.
-
-To work from a clone instead: `git clone https://github.com/cykj40/x-unrepost.git && cd x-unrepost && npm install`, then use `npm run <command>` in place of `x-unrepost <command>`.
 
 ### Where things live
 
@@ -81,7 +84,7 @@ To work from a clone instead: `git clone https://github.com/cykj40/x-unrepost.gi
 
 ### A note on `npm warn install-scripts`
 
-Depending on your npm version, installing this project's dev dependencies may print `npm warn install-scripts` for `esbuild` and `fsevents`. It is harmless: they are only used by development tooling and the warning only says their install scripts have not been reviewed. `package.json` lists both under `allowScripts`. Installing the published package pulls in only `zod`.
+Depending on your npm version, installing this project's dev dependencies may print `npm warn install-scripts` for `esbuild` and `fsevents`. It is harmless: they are only used by the development tooling (tests and the TypeScript runner) and the warning only says their install scripts have not been reviewed. `package.json` lists both under `allowScripts`.
 
 **X app.** (`init` asks for these.) In console.x.com create an app with user authentication set to **Read and write**, type **Web App / Automated App or Bot**, and callback URL exactly `http://127.0.0.1:8765/callback`. Copy the Client ID and Client Secret into `.env` as `X_CLIENT_ID` and `X_CLIENT_SECRET`. X API access is pay-per-use, so add credits there.
 
@@ -89,7 +92,7 @@ Depending on your npm version, installing this project's dev dependencies may pr
 
 ## Walkthrough
 
-Use `x-unrepost <command>`; from a clone, `npm run <command>` with flags after `--`.
+Use `npm run <command>`, with flags after `--`.
 
 ```
 npm run auth                                        # log in to X in your browser once
@@ -111,7 +114,7 @@ npm run verify                                      # confirm deleted rows are o
 | `delete [--types repost,reply,quote,post] [--dry-run] [--include-borderline] [--limit N] [--topic NAME]` | Deletes rows labeled `remove` (and `borderline` with the flag) under the current criteria. Default type is `repost`. |
 | `status` | Active criteria, counts by type, label and status, top matched topics, stale rows, scan state, and the ETA for remaining deletes. |
 | `verify [--pages N]` | Reads the newest 1 to 2 pages of your timeline and lists rows marked `deleted` that still appear. Read-only. |
-| `review` | Not implemented yet. Use `--include-borderline` or relabel by editing the criteria. |
+| `review` *(not implemented yet)* | Use `--include-borderline` or relabel by editing the criteria. |
 
 ## Safety model
 

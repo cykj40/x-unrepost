@@ -159,7 +159,21 @@ export interface InitDeps {
   cwd?: string;
   /** Where the example files and presets are read from. */
   packageRoot?: string;
+  /** True when launched through `npm run` (defaults to npm_lifecycle_event being set). */
+  viaNpm?: boolean;
   log?: (line: string) => void;
+}
+
+/** How to write a command for the way the tool was launched; `npm run` needs `--` before flags. */
+export function commandLine(viaNpm: boolean, command: string, flags = ""): string {
+  if (!viaNpm) return `x-unrepost ${command}${flags ? ` ${flags}` : ""}`;
+  return `npm run ${command}${flags ? ` -- ${flags}` : ""}`;
+}
+
+/** Where the tool looks for .env and scrub.config.json, phrased for the launch mode. */
+function whereRead(viaNpm: boolean): string {
+  const lookup = `.env and scrub.config.json are read from the current folder, then from ${stateDir()}.`;
+  return viaNpm ? `Run these from the repo folder. ${lookup}` : `Run x-unrepost from this folder. ${lookup}`;
 }
 
 async function yesNo(p: Prompter, question: string, dflt: boolean): Promise<boolean> {
@@ -282,6 +296,8 @@ export async function init(deps: InitDeps = {}): Promise<void> {
   const cwd = deps.cwd ?? process.cwd();
   const root = deps.packageRoot ?? projectRoot;
   const doFetch = deps.fetch ?? fetch;
+  const viaNpm = deps.viaNpm ?? Boolean(process.env.npm_lifecycle_event);
+  const cmd = (c: string, f?: string) => commandLine(viaNpm, c, f);
   const p = deps.prompter ?? createPrompter();
   const envFile = path.join(cwd, ".env");
   const configFile = path.join(cwd, "scrub.config.json");
@@ -310,7 +326,8 @@ export async function init(deps: InitDeps = {}): Promise<void> {
       log("\nNow edit:");
       log("  .env                  X_CLIENT_ID, X_CLIENT_SECRET, your AI key, and AI_MODEL (required for openai)");
       log("  scrub.config.json     mode, topics, and optional instructions");
-      log(`Then run: x-unrepost auth   (x-unrepost reads these from the current folder or ${stateDir()})`);
+      log(`Then run: ${cmd("auth")}`);
+      log(whereRead(viaNpm));
       return;
     }
 
@@ -332,12 +349,16 @@ export async function init(deps: InitDeps = {}): Promise<void> {
     reportGitignore(cwd, log);
 
     log("\nNext:");
-    log("  x-unrepost auth       log in to X in your browser (once)");
-    log("  x-unrepost scan       read your timeline: about $3 per 3,200 posts (measured on one account)");
-    log("  x-unrepost classify   label every row");
-    log("  x-unrepost delete --dry-run");
+    const rows: Array<[string, string]> = [
+      [cmd("auth"), "log in to X in your browser (once)"],
+      [cmd("scan"), "read your timeline: about $3 per 3,200 posts (measured on one account)"],
+      [cmd("classify"), "label every row"],
+      [cmd("delete", "--dry-run"), "see what would be removed"],
+    ];
+    const width = Math.max(...rows.map(([c]) => c.length));
+    for (const [c, what] of rows) log(`  ${c.padEnd(width)}  ${what}`);
     log("Un-reposts are limited to 50 per 15 minutes, so 1,400 reposts takes about 7 hours.");
-    log(`Run x-unrepost from this folder, or move .env and scrub.config.json into ${stateDir()}.`);
+    log(whereRead(viaNpm));
   } finally {
     p.close();
   }

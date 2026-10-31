@@ -7,3 +7,4 @@ data/
 scrub.config.json
 .DS_Store
 *.tgz
+PLAN.md

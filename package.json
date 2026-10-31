@@ -2,6 +2,23 @@
   "name": "x-unrepost",
   "version": "0.1.0",
   "description": "Scan your X account, label posts against your own criteria with an LLM, and delete the matches.",
+  "author": "Cyrus Khiabani (@cyjkcodes)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cykj40/x-unrepost.git"
+  },
+  "homepage": "https://github.com/cykj40/x-unrepost#readme",
+  "bugs": {
+    "url": "https://github.com/cykj40/x-unrepost/issues"
+  },
+  "keywords": [
+    "x",
+    "twitter",
+    "cleanup",
+    "delete-posts",
+    "llm",
+    "cli"
+  ],
   "type": "module",
   "license": "MIT",
   "engines": {

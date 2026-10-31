@@ -8,7 +8,7 @@ export const commands = {
   auth: "Log in to X (OAuth 2.0 PKCE) and verify the account",
   scan: "Fetch your recent posts, reposts, replies and quotes into data/posts.csv",
   classify: "Label each row remove / borderline / keep against your criteria",
-  review: "Interactively resolve borderline rows",
+  review: "Interactively resolve borderline rows (not implemented yet)",
   delete: "Un-repost or delete rows labeled remove",
   status: "Show criteria, counts and remaining work",
   verify: "Check the timeline for rows marked deleted that still appear",

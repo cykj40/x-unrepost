@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSy
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { checkAiKey, checkXCredentials, cleanKey, ensureGitignore, init, parseTopicSelection } from "../src/commands/init.ts";
-import { projectRoot } from "../src/config.ts";
+import { checkAiKey, checkXCredentials, cleanKey, commandLine, ensureGitignore, init, parseTopicSelection } from "../src/commands/init.ts";
+import { projectRoot, stateDir } from "../src/config.ts";
 import { PassThrough } from "node:stream";
 import { ConfigError } from "../src/errors.ts";
 import { readTty, type Prompter } from "../src/ui.ts";
@@ -313,4 +313,66 @@ test("the editor caps input at the limit, handles backspace, turns a pasted newl
   result = readTty("q", {}, t.io);
   t.stdin.write("\x03");
   await assert.rejects(result, ConfigError);
+});
+
+// ---- final screen per launch mode ----
+
+const home = () => stateDir();
+
+test("final screen, launched through npm run: npm run commands, -- before flags, run from the repo", async () => {
+  const cwd = dir();
+  writeFileSync(path.join(cwd, ".env"), "x\n");
+  const lines: string[] = [];
+  await init({ prompter: scripted(["1", "n", "1", "1", "", "y"]).p, cwd, packageRoot: projectRoot, viaNpm: true, log: (l) => lines.push(l) });
+  const screen = lines.slice(lines.indexOf("\nNext:")).join("\n");
+  assert.equal(
+    screen,
+    [
+      "\nNext:",
+      "  npm run auth                 log in to X in your browser (once)",
+      "  npm run scan                 read your timeline: about $3 per 3,200 posts (measured on one account)",
+      "  npm run classify             label every row",
+      "  npm run delete -- --dry-run  see what would be removed",
+      "Un-reposts are limited to 50 per 15 minutes, so 1,400 reposts takes about 7 hours.",
+      `Run these from the repo folder. .env and scrub.config.json are read from the current folder, then from ${home()}.`,
+    ].join("\n"),
+  );
+  assert.ok(!screen.includes("x-unrepost auth"));
+});
+
+test("final screen, launched directly: x-unrepost commands", async () => {
+  const cwd = dir();
+  writeFileSync(path.join(cwd, ".env"), "x\n");
+  const lines: string[] = [];
+  await init({ prompter: scripted(["1", "n", "1", "1", "", "y"]).p, cwd, packageRoot: projectRoot, viaNpm: false, log: (l) => lines.push(l) });
+  const screen = lines.slice(lines.indexOf("\nNext:")).join("\n");
+  assert.equal(
+    screen,
+    [
+      "\nNext:",
+      "  x-unrepost auth              log in to X in your browser (once)",
+      "  x-unrepost scan              read your timeline: about $3 per 3,200 posts (measured on one account)",
+      "  x-unrepost classify          label every row",
+      "  x-unrepost delete --dry-run  see what would be removed",
+      "Un-reposts are limited to 50 per 15 minutes, so 1,400 reposts takes about 7 hours.",
+      `Run x-unrepost from this folder. .env and scrub.config.json are read from the current folder, then from ${home()}.`,
+    ].join("\n"),
+  );
+  assert.ok(!screen.includes("npm run"));
+});
+
+test("manual setup closing lines follow the launch mode too", async () => {
+  for (const viaNpm of [true, false]) {
+    const lines: string[] = [];
+    await init({ prompter: scripted(["2"]).p, cwd: dir(), packageRoot: projectRoot, viaNpm, log: (l) => lines.push(l) });
+    const out = lines.join("\n");
+    assert.equal(out.includes("Then run: npm run auth"), viaNpm);
+    assert.equal(out.includes("Then run: x-unrepost auth"), !viaNpm);
+  }
+});
+
+test("commandLine puts -- before flags only for npm run", () => {
+  assert.equal(commandLine(true, "delete", "--dry-run"), "npm run delete -- --dry-run");
+  assert.equal(commandLine(true, "scan"), "npm run scan");
+  assert.equal(commandLine(false, "delete", "--dry-run"), "x-unrepost delete --dry-run");
 });
