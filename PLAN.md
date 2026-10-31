@@ -16,7 +16,7 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 - [x] **Phase 5** — X API client with rate-limit handling, with tests
 - [x] **Phase 6** — `scan` command
 - [ ] **Phase 7** — `classify` command, with the prompt built from the criteria *(code done, tests pass; waiting on the label check below)*
-- [ ] **Phase 8** — `review` command
+- [ ] **Phase 8** — `review` command *(optional: skipped if borderline rows are deleted too)*
 - [ ] **Phase 9** — `delete` command
 - [ ] **Phase 10** — `status`, README, final hardening
 - [ ] **Phase 11** — The real run *(you)*
@@ -33,7 +33,13 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 
 **Costs seen so far:** the full scan cost about $3 (about $0.001 per post read). The price of an un-repost or delete is **still unknown**. Measure it with `npm run delete -- --limit 5` in Phase 9 and check the credit balance before and after.
 
-**Do first tomorrow:**
+**Label check done (Sat Oct 31, from the CSV):** `remove` sample ~2 false positives in 30 (a non-political reply, a politician's flood-relief post); `keep` sample 1 questionable in 40 (war footage); 209 of the 631 borderline rows are link/image-only posts the model can't read, and 336 have a reason saying content was unavailable. Data quality is good (3,218 unique ids, 0 model errors, 1 truncated repost text).
+
+**Decision (Oct 31): if there's any doubt, delete.** Borderline rows get deleted along with remove rows via `delete --include-borderline`; the `review` phase is optional. Counts if so: 1,706 rows (reposts 1,529, replies 164, posts 13). Reposts are reversible (you can re-repost); replies and posts are permanent, so decide on those separately. At 50 un-reposts per 15 minutes, 1,529 takes about 7.6 hours.
+
+**Config change (Oct 31):** the first instructions told the model that market/Fed news and tech-regulation news were borderline. With "delete if in doubt" that would delete finance and AI-industry posts you want to keep (the CSV had 290 rows with finance/stock terms: 180 keep, 63 borderline, 47 remove; your own AI-regulation post and replies were flagged too). The instructions in `scrub.config.json` were rewritten (see Phase 11, 494 of 500 characters) to treat stocks, finance, company news and AI/tech industry debates as NOT political, and to keep link-only reposts from tech/finance accounts. Changing them changes the criteria hash, so `npm run classify` relabels all 3,218 rows (about $1).
+
+**Do first tomorrow (original list, partly done):**
 1. Check no rows were left as model errors: `grep -c "model error" data/posts.csv` should print 0.
 2. The counts above are the baseline. 631 borderline rows is a long manual review; if the label check shows the classifier is too cautious, tighten the `instructions` line (or switch `AI_MODEL`) and rerun `classify`.
 3. Read about 30 `remove` rows from different dates (wrong = costly deletions) and about 30 older `keep` rows (political ones = misses). Tune the `instructions` line in `scrub.config.json` if more than 2 or 3 are wrong. Changing it relabels everything automatically.
@@ -250,7 +256,7 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 
 ---
 
-## Phase 8 — `review`
+## Phase 8 — `review` (optional: skip it if you delete borderline rows too)
 
 **Prompt:**
 > Read PLAN.md and CLAUDE.md. Do Phase 8 only. Implement `review` with `node:readline/promises`. Loop over rows where `label=borderline` and `reviewed` is empty. Show the active criteria at the top, then for each item: the type, date, author, text, context, the AI's topic and reason, and a link (`https://x.com/i/status/<target_id>`). Keys: `r` = remove, `k` = keep, `s` = skip, `u` = undo the last answer, `q` = quit. Save after each answer and set `reviewed=yes`. Show progress as `12/87`. Add a `--label remove` flag so you can also check items the AI marked for removal.
@@ -265,10 +271,11 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 ## Phase 9 — `delete`
 
 **Prompt:**
-> Read PLAN.md and CLAUDE.md. Do Phase 9 only. Implement `delete`. Select rows with `label=remove`, a `criteria_hash` equal to the current criteria (warn and skip rows labeled under different criteria, and tell the user to run classify), `type` in `--types` (default `repost`), and `status` not `deleted` or `gone`. `--dry-run`: print a table of what would be deleted (type, topic, the first 80 chars) plus the count and ETA (50 per 15 min), and make **no** write calls. A real run: if `--types` includes anything other than repost, print a warning that this is PERMANENT and require the user to type `DELETE` exactly. Reposts use `unrepost(userId, target_id)`. Everything else uses `deleteTweet(id)`. Set `status` after each item (deleted, gone on a 404, or failed with the error message) and save immediately. Add `--limit N` and `--topic <name>` (delete only rows whose matched topic is this one). Handle SIGINT by finishing the current item, saving, and exiting cleanly. Print a running count and the ETA.
+> Read PLAN.md and CLAUDE.md. Do Phase 9 only. Implement `delete`. Select rows with `label=remove` (plus `label=borderline` when `--include-borderline` is passed; borderline rows the user already reviewed were relabeled remove or keep, so they follow their new label), a `criteria_hash` equal to the current criteria (warn and skip rows labeled under different criteria, and tell the user to run classify), `type` in `--types` (default `repost`), and `status` not `deleted` or `gone`. `--dry-run`: print a table of what would be deleted (type, topic, the first 80 chars) plus the count and ETA (50 per 15 min), and make **no** write calls. A real run: if `--types` includes anything other than repost, print a warning that this is PERMANENT and require the user to type `DELETE` exactly. Reposts use `unrepost(userId, target_id)`. Everything else uses `deleteTweet(id)`. Set `status` after each item (deleted, gone on a 404, or failed with the error message) and save immediately. Add `--limit N` and `--topic <name>` (delete only rows whose matched topic is this one). Handle SIGINT by finishing the current item, saving, and exiting cleanly. Print a running count and the ETA.
 
 **Done when:**
 - [ ] `--dry-run` makes zero write calls (prove it with a test against a mocked client)
+- [ ] `--dry-run` prints counts split by label and type; with `--include-borderline` the total equals remove + borderline for the chosen `--types`
 - [ ] Rows with a stale criteria hash are skipped, with a warning
 - [ ] `npm run delete -- --limit 1` un-reposts exactly one item. Confirm it on x.com
 - [ ] `--types repost,reply` refuses to continue without `DELETE` typed in
@@ -298,7 +305,7 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 {
   "mode": "remove",
   "topics": ["politics"],
-  "instructions": "Politics includes elections, politicians, parties, government policy fights, partisan commentary, culture-war topics, and taking sides in geopolitical conflicts. A reply counts as political if it engages with a political post, even briefly ('agreed', 'this'). Market or Fed news without partisan framing is borderline. Tech regulation news is borderline."
+  "instructions": "Politics: elections, politicians, parties, government policy fights, partisan commentary, culture-war topics, taking sides in geopolitical conflicts, presidential and administration statements or actions. NOT political: stocks, finance, investing, company news (Palantir), AI and tech industry debates, even if a government is mentioned. A reply is political only if it takes a political stance. Link-only reposts: political or government accounts are political; tech or finance accounts, keep."
 }
 ```
 
@@ -306,10 +313,10 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 npm run auth
 npm run scan
 npm run classify
-npm run review                                      # go through the borderline ones
-npm run delete -- --types repost,reply --dry-run    # check the full list first
-npm run delete                                      # step 1: political reposts only (reversible, you can re-repost)
-npm run delete -- --types reply                     # step 2: political replies (PERMANENT, type DELETE)
+npm run review                                      # optional: skip it if you delete anything in doubt
+npm run delete -- --include-borderline --dry-run    # check the full list first
+npm run delete -- --include-borderline              # step 1: reposts only, remove + borderline (you can re-repost)
+npm run delete -- --types reply                     # step 2 (optional): replies (PERMANENT, type DELETE)
 npm run scan -- --fresh && npm run classify && npm run status   # verify nothing political is left
 ```
 ~1,355 reposts plus your replies, at 50 per 15 min, is roughly 7+ hours. Leave it running.
