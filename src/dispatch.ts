@@ -10,6 +10,7 @@ export const commands = {
   review: "Interactively resolve borderline rows",
   delete: "Un-repost or delete rows labeled remove",
   status: "Show criteria, counts and remaining work",
+  verify: "Check the timeline for rows marked deleted that still appear",
 } as const;
 
 export type CommandName = keyof typeof commands;
@@ -21,6 +22,7 @@ export const loaders: Record<CommandName, () => Promise<CommandModule>> = {
   review: () => import("./commands/review.ts"),
   delete: () => import("./commands/delete.ts"),
   status: () => import("./commands/status.ts"),
+  verify: () => import("./commands/verify.ts"),
 };
 
 function isCommand(name: string): name is CommandName {

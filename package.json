@@ -5,16 +5,17 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=20.12"
+    "node": ">=22"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/**/*.test.ts",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "scan": "tsx src/cli.ts scan",
     "classify": "tsx src/cli.ts classify",
     "review": "tsx src/cli.ts review",
     "delete": "tsx src/cli.ts delete",
     "status": "tsx src/cli.ts status",
+    "verify": "tsx src/cli.ts verify",
     "auth": "tsx src/cli.ts auth"
   },
   "dependencies": {

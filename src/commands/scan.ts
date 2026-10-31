@@ -64,7 +64,7 @@ export function tweetToRow(tweet: XTweet, includes: Includes): PostRow {
   return PostRow.parse({ ...base, type: "post" });
 }
 
-function readState(file: string): ScanState | undefined {
+export function readState(file: string): ScanState | undefined {
   try {
     return scanState.parse(JSON.parse(readFileSync(file, "utf8")));
   } catch {

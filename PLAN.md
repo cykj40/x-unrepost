@@ -15,42 +15,51 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 - [x] **Phase 4** — OAuth 2.0 PKCE login and token refresh
 - [x] **Phase 5** — X API client with rate-limit handling, with tests
 - [x] **Phase 6** — `scan` command
-- [ ] **Phase 7** — `classify` command, with the prompt built from the criteria *(code done, tests pass; waiting on the label check below)*
-- [ ] **Phase 8** — `review` command *(optional: skipped if borderline rows are deleted too)*
-- [ ] **Phase 9** — `delete` command
-- [ ] **Phase 10** — `status`, README, final hardening
-- [ ] **Phase 11** — The real run *(you)*
+- [x] **Phase 7** — `classify` command, with the prompt built from the criteria
+- [x] **Phase 8** — `review` command *(skipped on purpose: borderline rows were deleted too)*
+- [x] **Phase 9** — `delete` command *(built, tested, and run for real: 1,382 reposts un-reposted)*
+- [ ] **Phase 10** — `status`, `verify`, README, final hardening
+- [x] **Phase 11** — The real run *(you)*: 1,382 reposts + 66 replies/posts deleted; x.com checked
+- [ ] **Phase 12** — Installable CLI and `init` setup wizard (guided or manual)
+- [ ] **Phase 13** — `import-archive`, to reach posts older than the API's ~3,200
 
 ---
 
-## Resume here (end of session 1, Fri Oct 30)
+## Resume here (end of session 2, Sat Oct 31)
 
-**State:** Phases 0 to 6 are done. Phase 7 (`classify`) is built and tested (109 tests pass). First real run labeled the 40 newest posts (35 keep, 5 borderline, 0 remove), which is expected because the newest posts were already cleaned by hand. The full `npm run classify` over all 3,218 rows then finished: **remove 1,075, borderline 631, keep 1,512** (159 batches; one batch needed a retry, which succeeded). Nothing has been quality-checked yet, and nothing has been deleted.
+**State:** Phases 0 to 9 and 11 are done. The account is scrubbed of politics under the criteria: `delete --include-borderline` un-reposted **1,382 reposts** (1,055 remove + 327 borderline; 0 failed, 0 gone), and a second run with `--types reply,post --include-borderline` deleted **66 replies and posts permanently** (58 replies, 8 posts; decision: "I'd rather be safe than sorry", nothing held back). The user scrolled their profile on x.com and found no political content; finance and tech reposts were kept. Final `classify` shows remove 0, borderline 0, keep 1,774 (1,840 before the last delete minus 66).
 
-**Real data:** `data/posts.csv` holds 3,218 rows: 2,639 reposts, 523 replies, 0 quotes, 56 posts. The scan is marked complete, so a plain `npm run scan` only reads new posts. Never use `--fresh` unless you want to re-pay for a full read.
+**Final labels (hash `2a5d30c8`, run 2):** remove 1,096, borderline 352, keep 1,770 over 3,218 rows. The dry-run list was all reposts, all about politics; a few arguable rows (USDA/Rollins nutrition, Sec. Kennedy food, Lonsdale taxes, an Iranian-rescue post) were accepted under "if there's any doubt, delete".
 
-**Settings:** `AI_MODEL=gpt-6.1-terra` (switch to `gpt-6-luna` to save money). Criteria is `mode: remove`, topics `["politics"]`, plus the instructions from Phase 11 (hash `965b479f`).
+**Real data:** `data/posts.csv` holds 3,222 rows after the last scan (repost 2,641, reply 525, quote 0, post 56). The 4 newest posts are not labeled yet: run `npm run classify` (costs a fraction of a cent). Note: `scan` is incremental (it stops at the first fully known page), so it does NOT re-check deleted posts. Verifying deletions means scrolling x.com, or the `verify` command planned in Phase 10. Never use `--fresh` unless you want to re-pay about $3.
 
-**Costs seen so far:** the full scan cost about $3 (about $0.001 per post read). The price of an un-repost or delete is **still unknown**. Measure it with `npm run delete -- --limit 5` in Phase 9 and check the credit balance before and after.
+**Settings:** `AI_MODEL=gpt-6.1-terra`. Criteria: `mode: remove`, topics `["politics"]`, plus the Phase 11 instructions.
 
-**Label check done (Sat Oct 31, from the CSV):** `remove` sample ~2 false positives in 30 (a non-political reply, a politician's flood-relief post); `keep` sample 1 questionable in 40 (war footage); 209 of the 631 borderline rows are link/image-only posts the model can't read, and 336 have a reason saying content was unavailable. Data quality is good (3,218 unique ids, 0 model errors, 1 truncated repost text).
+**Costs measured (Oct 30-31):**
+- Full scan of 3,218 posts: about $3 (about $0.001 per post read)
+- Classification: about $1 per full run (two runs)
+- Un-reposts: about **$10.13 for 1,382, roughly $0.0073 each** (balance went from about $26.93 to $16.80; the start figure was approximate and includes any other API calls)
+- Total for this account: about $15
+- Un-repost limit is **50 per 15 minutes**: the run took about 7 hours. The tool waits out the window by itself. The 5-item test used part of the first window.
+- Cost of `deleteTweet` (replies/posts) is not measured yet (66 rows, one rate-limit window of about 20 minutes).
 
-**Decision (Oct 31): if there's any doubt, delete.** Borderline rows get deleted along with remove rows via `delete --include-borderline`; the `review` phase is optional. Counts if so: 1,706 rows (reposts 1,529, replies 164, posts 13). Reposts are reversible (you can re-repost); replies and posts are permanent, so decide on those separately. At 50 un-reposts per 15 minutes, 1,529 takes about 7.6 hours.
+**Decisions:**
+- Delete anything in doubt (`--include-borderline`); skip `review`.
+- Finance, stocks, company news and AI/tech industry content is NOT political and must be kept.
+- Un-reposts are reversible; replies and posts are permanent and need a typed `DELETE`.
+- Honesty rule for the README and any public claims: state only what we measured or verified. No speed comparisons with paid tools. Say plainly: the API window is about 3,200 recent posts, un-reposts are rate-limited to 50 per 15 minutes, and users bring their own X credits and OpenAI key.
 
-**Config change (Oct 31):** the first instructions told the model that market/Fed news and tech-regulation news were borderline. With "delete if in doubt" that would delete finance and AI-industry posts you want to keep (the CSV had 290 rows with finance/stock terms: 180 keep, 63 borderline, 47 remove; your own AI-regulation post and replies were flagged too). The instructions in `scrub.config.json` were rewritten (see Phase 11, 494 of 500 characters) to treat stocks, finance, company news and AI/tech industry debates as NOT political, and to keep link-only reposts from tech/finance accounts. Changing them changes the criteria hash, so `npm run classify` relabels all 3,218 rows (about $1).
+**Do next:**
+1. Send the cost of the 66 permanent deletes (balance before/after) so the README can quote a real figure; not measured yet.
+2. Commit and push any uncommitted work (`feat: delete command` was the Phase 9 commit). Check `git status` shows no `.env`, `.x_tokens.json`, `scrub.config.json` or `data/`.
+3. Phase 10, then 12, then 13.
 
-**Do first tomorrow (original list, partly done):**
-1. Check no rows were left as model errors: `grep -c "model error" data/posts.csv` should print 0.
-2. The counts above are the baseline. 631 borderline rows is a long manual review; if the label check shows the classifier is too cautious, tighten the `instructions` line (or switch `AI_MODEL`) and rerun `classify`.
-3. Read about 30 `remove` rows from different dates (wrong = costly deletions) and about 30 older `keep` rows (political ones = misses). Tune the `instructions` line in `scrub.config.json` if more than 2 or 3 are wrong. Changing it relabels everything automatically.
-4. Spot-check 5 reposts and 1 reply against x.com (text is the full original post, author and `target_id` are right). Confirm quotes really are 0.
-5. Tick Phase 7, commit (`feat: criteria-driven classification`), push.
-6. Start Phase 8 (`review`), then Phase 9 (`delete`, run it yourself).
-
-**Open items to fix later:**
-- Phase 10: the test script glob needs Node 22+ (raise `engines.node` or point at `test/`).
-- Phase 10: `auth` and `classify` validate the whole env, so each needs keys it doesn't use. Relax that for public users.
-- Phase 10: the stale comment in `src/ai.ts` should say the GPT-6 family.
+**Open items to fix later (Phase 10):**
+- The test script glob needs Node 22+ (raise `engines.node` or point at `test/`).
+- `auth` and `classify` validate the whole env, so each needs keys it doesn't use. Relax that for public users.
+- The stale comment in `src/ai.ts` (about line 61) should say the GPT-6 family.
+- Make the skipped config test hermetic (it depends on a real `scrub.config.json`).
+- Add a `verify` command: read the first page or two of the timeline (about $0.10-0.20) and flag any row marked deleted that still appears.
 - If `classify` ever fails with a 400 about `response_format`, switch to structured outputs (`json_schema`).
 - `.env` contains live keys. Keep the tab closed when sharing screenshots.
 
@@ -60,7 +69,7 @@ A phased plan for building **x-unrepost** in TypeScript, one Claude Code session
 
 | Area | Decision |
 |---|---|
-| Runtime | Node **≥ 20.12**, ESM (`"type": "module"`), TypeScript `strict` |
+| Runtime | Node **≥ 22**, ESM (`"type": "module"`), TypeScript `strict` |
 | Run | `tsx` runs the source directly with no build step. `tsc --noEmit` is the typecheck |
 | Runtime deps | **`zod` only.** Use native `fetch`, `node:http`, `node:crypto`, `node:readline/promises`, `node:util` `parseArgs`, `node:test` |
 | Env loading | `process.loadEnvFile()` (built into Node), no `dotenv` |
@@ -145,7 +154,7 @@ Other examples to include in the README: `{"mode":"remove","topics":["politics"]
 CLI that scans the user's X account, labels each item with an LLM against user-defined
 criteria (scrub.config.json: remove these topics, or keep only these topics), and deletes the matches.
 - Read PLAN.md first. Only do the phase you're asked to do.
-- Node >=20.12 ESM, TS strict. Runtime dep: zod only. No new deps without asking.
+- Node >=22 ESM, TS strict. Runtime dep: zod only. No new deps without asking.
 - Labels are generic: remove | borderline | keep. Never hard-code a topic in the code.
 - Never read, print, or commit .env, .x_tokens.json, or data/.
 - Every write to state is atomic and happens after each item. Commands must be resumable.
@@ -287,14 +296,16 @@ criteria (scrub.config.json: remove these topics, or keep only these topics), an
 ## Phase 10 — `status`, README, hardening
 
 **Prompt:**
-> Read PLAN.md and CLAUDE.md. Do Phase 10 only. Implement `status`: the active criteria, counts by type × label × status, the top matched topics, how many rows are stale (hash mismatch), whether the scan is complete, and an ETA for the remaining deletes. Write README.md for public users: what the tool does, the content-scrubber idea with 3 example configs (remove politics, remove sports and politics, keep only tech), X app setup, the OpenAI key, install (`npm install`), the command walkthrough, rate limits and runtime, a cost note, the safety model, the files you must never commit, and how to re-verify. Add a GitHub Actions workflow that runs typecheck and tests on push. Review the whole codebase for: tokens or keys in logs, writes that aren't atomic, any write path that a dry run can reach, hard-coded topics, and unhandled promise rejections. Fix what you find and list the fixes. Also fix the test script: `node --test` globs need Node 22+, so either raise `engines.node` to `>=22` or point the script at the `test/` directory.
+> Read PLAN.md and CLAUDE.md. Do Phase 10 only. Also implement `verify`: fetch the first 1-2 pages of the user's timeline and report any row marked `deleted` in the CSV that still appears (cost about $0.10-0.20), since `scan` is incremental and never re-checks deletions. Implement `status`: the active criteria, counts by type × label × status, the top matched topics, how many rows are stale (hash mismatch), whether the scan is complete, and an ETA for the remaining deletes. Write README.md for public users: what the tool does, the content-scrubber idea with 3 example configs (remove politics, remove sports and politics, keep only tech), X app setup, the OpenAI key, install (`npm install`), the command walkthrough, rate limits and runtime, a cost note using the measured numbers in "Resume here" (scan about $3 per 3,200 posts, classify about $1, un-repost about 0.7 cents each), the safety model, the files you must never commit, and how to re-verify. Add a GitHub Actions workflow that runs typecheck and tests on push. Review the whole codebase for: tokens or keys in logs, writes that aren't atomic, any write path that a dry run can reach, hard-coded topics, and unhandled promise rejections. Fix what you find and list the fixes. Also fix the test script: `node --test` globs need Node 22+, so either raise `engines.node` to `>=22` or point the script at the `test/` directory.
 
 **Done when:**
 - [ ] CI is green on GitHub
 - [ ] `grep -rni "politic" src/` returns nothing (no hard-coded topics)
 - [ ] `grep -rn "access_token\|apiKey" src/` shows no logging of secrets
 - [ ] A fresh clone, followed by the README steps, works on a second terminal or machine
-- [ ] Commit: `docs: README, status, CI`
+- [ ] README claims only what was measured or verified: no speed comparisons with other tools; it states the ~3,200-post API window, the 50-per-15-minute un-repost limit (about 7 hours for 1,400 reposts), and that users bring their own X credits and OpenAI key
+- [ ] `verify` flags a deleted row that still appears on the timeline (test with a mocked client)
+- [ ] Commit: `docs: README, status, verify, CI`
 
 ---
 
@@ -317,13 +328,47 @@ npm run review                                      # optional: skip it if you d
 npm run delete -- --include-borderline --dry-run    # check the full list first
 npm run delete -- --include-borderline              # step 1: reposts only, remove + borderline (you can re-repost)
 npm run delete -- --types reply                     # step 2 (optional): replies (PERMANENT, type DELETE)
-npm run scan -- --fresh && npm run classify && npm run status   # verify nothing political is left
+npm run scan && npm run classify                    # picks up new posts only (incremental); does NOT re-check deletions
+# verify: scroll your profile on x.com, or use `npm run verify` once Phase 10 adds it. `scan --fresh` costs about $3
 ```
-~1,355 reposts plus your replies, at 50 per 15 min, is roughly 7+ hours. Leave it running.
+Actual result: 1,382 reposts un-reposted in about 7 hours at 50 per 15 min, about $10. Replies and posts are still to decide.
 
 - [ ] Want a different cleanup later? Edit `scrub.config.json` and rerun `classify`. It relabels only what's left
 - [ ] Stop your Mac from sleeping during long runs: `caffeinate -i npm run delete`
 - [ ] Never commit or share `.env`, `.x_tokens.json`, `scrub.config.json`, or `data/`
+
+---
+
+## Phase 12 — Installable CLI and `init` wizard
+
+**Goal:** people run `npx x-unrepost` or `npm i -g x-unrepost` instead of cloning the repo, and a setup wizard replaces hand-editing files.
+
+**Prompt:**
+> Read PLAN.md and CLAUDE.md. Do Phase 12 only. (1) Packaging: add a `bin` entry and a build (`tsc` to `dist/`, with a shebang on the entry) so `x-unrepost <command>` works; keep `tsx` for development. Move state (`data/`, `.x_tokens.json`) to a per-user directory (`~/.x-unrepost/`, overridable with `X_UNREPOST_HOME`), and keep reading `.env` and `scrub.config.json` from the current directory or that home. Existing repo-local state must keep working (migrate or detect it, never lose data). (2) `x-unrepost init`: first ask **Guided setup** or **Manual setup**. *Manual*: copy `.env.example` and `scrub.config.example.json` into place (never overwrite), print what to fill in, and stop. *Guided*: ask for the X Client ID and Secret (secret input hidden) and the OpenAI key, with a one-line note on where each comes from; check each key with a real call (X `me`, a tiny OpenAI request) so typos fail now; write `.env` with mode 0600; make sure `.gitignore` covers it. Then build `scrub.config.json`: ask remove vs keep_only, the topics (offer presets like politics, sports, crypto, or type your own), and optional extra instructions (enforce the 500-character limit as the user types), show the final config, and ask for confirmation. End by printing the next command and the expected cost of a scan (about $3 per 3,200 posts) and the 50-per-15-minute un-repost limit. Use `node:readline/promises` only; no new dependencies without asking. Never print or log secrets.
+
+**Done when:**
+- [ ] `npm run build` produces `dist/`; `node dist/cli.js --help` works
+- [ ] `npm pack` then installing the tarball in a temp folder lets `x-unrepost --help` run
+- [ ] `init` guided mode on an empty folder produces a working `.env` (0600) and `scrub.config.json`; a bad key is rejected with a clear message
+- [ ] `init` manual mode never overwrites existing files
+- [ ] Existing repo-local `data/` and tokens still work
+- [ ] Tests pass and typecheck is clean
+- [ ] Commit: `feat: installable CLI and init wizard`
+
+---
+
+## Phase 13 — `import-archive`
+
+**Goal:** reach posts older than the API's ~3,200 limit. X lets users download a data archive (it can take 24-48 hours to arrive); it contains every post ID. The rest of the pipeline (classify, delete) works by ID, so it needs no changes.
+
+**Prompt:**
+> Read PLAN.md and CLAUDE.md. Do Phase 13 only. Add `x-unrepost import-archive <path>` that reads the `tweet.js` (or `tweets.js`) file from an unzipped X archive (strip the `window.YTD.tweets.part0 = ` prefix, then parse the JSON), and upserts rows into `posts.csv` without clobbering existing labels or statuses. Determine the type from the archive fields (retweet, reply, quote, post) and fill `id`, `created_at`, `text`, and `target_id` as best the archive allows. Archive text for retweets is truncated: mark such rows so `classify` can still label them, and note that un-reposting needs the source tweet id (verify the archive provides it; if it only gives the retweet's own id, find out whether the delete endpoint accepts that or whether a lookup is needed, and ask before choosing). Print counts by type and how many rows are new. Make no network calls. Tests: a small fixture archive, the prefix stripping, upsert-without-clobber.
+
+**Done when:**
+- [ ] Importing a real archive adds posts the API scan never reached, with no duplicate ids
+- [ ] Re-importing is a no-op
+- [ ] `classify` and `delete --dry-run` work on imported rows
+- [ ] Commit: `feat: import X archive`
 
 ---
 

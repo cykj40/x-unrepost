@@ -58,7 +58,7 @@ const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(reso
 /**
  * OpenAI-compatible /chat/completions over fetch (OpenAI and xAI share it).
  *
- * Request shape, checked against OpenAI's docs for gpt-5.4-mini: `reasoning_effort: "none"` is supported
+ * Request shape, checked against OpenAI's docs for the GPT-6 family (Luna, Terra): `reasoning_effort: "none"` is supported
  * (and its default); temperature is left out; JSON mode (`response_format: json_object`) is used instead of
  * strict Structured Outputs so the same call also works on xAI. Output is validated with zod by the caller.
  * `reasoning_effort` is only sent to OpenAI: other providers may reject the parameter.

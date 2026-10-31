@@ -11,7 +11,7 @@ function spyLoaders() {
   const make = (command: string) => async (): Promise<CommandModule> => ({
     run: async (argv) => void received.push({ command, argv }),
   });
-  const names: CommandName[] = ["auth", "scan", "classify", "review", "delete", "status"];
+  const names: CommandName[] = ["auth", "scan", "classify", "review", "delete", "status", "verify"];
   const loaders = Object.fromEntries(names.map((n) => [n, make(n)])) as Record<CommandName, () => Promise<CommandModule>>;
   return { received, loaders };
 }

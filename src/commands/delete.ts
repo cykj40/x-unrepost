@@ -67,7 +67,7 @@ export function selectRows(rows: PostRow[], hash: string, args: Pick<DeleteArgs,
 
 const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
 
-function formatEta(count: number): string {
+export function formatEta(count: number): string {
   const minutes = Math.ceil((count * WINDOW_MINUTES) / PER_WINDOW);
   if (minutes < 60) return `${minutes} min`;
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
