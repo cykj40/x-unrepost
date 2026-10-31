@@ -116,10 +116,17 @@ test("review: --label parses, defaults to borderline, rejects bad values", async
 });
 
 test("delete: every documented flag parses; types default to repost", async () => {
-  assert.deepEqual(parseDeleteArgs([]), { types: ["repost"], dryRun: false, limit: undefined, topic: undefined });
-  assert.deepEqual(parseDeleteArgs(["--types", "repost,reply", "--dry-run", "--limit=3", "--topic", "sports"]), {
+  assert.deepEqual(parseDeleteArgs([]), {
+    types: ["repost"],
+    dryRun: false,
+    includeBorderline: false,
+    limit: undefined,
+    topic: undefined,
+  });
+  assert.deepEqual(parseDeleteArgs(["--types", "repost,reply", "--dry-run", "--include-borderline", "--limit=3", "--topic", "sports"]), {
     types: ["repost", "reply"],
     dryRun: true,
+    includeBorderline: true,
     limit: 3,
     topic: "sports",
   });
@@ -127,6 +134,8 @@ test("delete: every documented flag parses; types default to repost", async () =
   await assert.rejects(runDelete(["--limit", "abc"]), oneLineConfigError);
   await assert.rejects(runDelete(["--dry-run=1"]), oneLineConfigError);
   await assert.rejects(runDelete(["--bogus"]), oneLineConfigError);
+  await assert.rejects(runDelete(["--include-borderline=yes"]), oneLineConfigError);
+  await assert.rejects(runDelete(["--topic", " "]), oneLineConfigError);
 });
 
 test("status and auth take no flags", async () => {
